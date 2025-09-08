@@ -1,5 +1,5 @@
 import time
-from decimal import Decimal
+from decimal import Decimal, ROUND_CEILING
 from typing import Dict, Any, Optional, List
 
 from ..internal.async_client import AsyncClient
@@ -92,8 +92,8 @@ class Client:
         except (ValueError, TypeError):
             raise ValueError("failed to parse fee rate")
 
-        # Calculate fee amount in decimal with 6 decimal places
-        amount_fee_dm = (value_dm * fee_rate).quantize(Decimal("0.000001"))
+        # Calculate fee amount in decimal with ceiling
+        amount_fee_dm = (value_dm * fee_rate).quantize(Decimal("0.000001"), rounding=ROUND_CEILING)
         amount_fee_str = str(amount_fee_dm)
 
         # Convert to the required integer format for the protocol
