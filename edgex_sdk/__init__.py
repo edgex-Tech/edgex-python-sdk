@@ -23,7 +23,9 @@ from .account.client import (
 from .quote.client import (
     GetKLineParams,
     GetOrderBookDepthParams,
-    GetMultiContractKLineParams
+    GetMultiContractKLineParams,
+    KlineType,
+    PriceType
 )
 from .transfer.client import (
     GetTransferOutByIdParams,
@@ -57,6 +59,8 @@ __all__ = [
     "GetKLineParams",
     "GetOrderBookDepthParams",
     "GetMultiContractKLineParams",
+    "KlineType",
+    "PriceType",
     "GetTransferOutByIdParams",
     "GetTransferInByIdParams",
     "GetWithdrawAvailableAmountParams",

@@ -501,16 +501,16 @@ class EdgeXTrader:
     async def get_k_line(
         self,
         contract_id: str,
-        interval: str,
-        size: str = "100",
+        kline_type: 'KlineType',
+        size: int = 100,
         offset_data: str = ""
     ) -> Dict[str, Any]:
         """
         Get K-line data.
-        
+
         Args:
             contract_id: The contract ID
-            interval: The K-line interval
+            kline_type: The K-line type (KlineType enum)
             size: The page size
             offset_data: The offset data for pagination
             
@@ -524,7 +524,7 @@ class EdgeXTrader:
             # Create parameters
             params = GetKLineParams(
                 contract_id=contract_id,
-                interval=interval,
+                kline_type=kline_type,
                 size=size,
                 offset_data=offset_data
             )

@@ -18,6 +18,7 @@ from edgex_sdk import (
     OrderSide,
     GetKLineParams,
     GetOrderBookDepthParams,
+    KlineType,
     WebSocketManager
 )
 
@@ -58,8 +59,8 @@ async def main():
     # Get K-line data for BTCUSDT (contract ID: 10000001)
     kline_params = GetKLineParams(
         contract_id="10000001",  # BTCUSDT
-        interval="1m",
-        size="10"
+        kline_type=KlineType.MINUTE_1,
+        size=10
     )
     klines = await client.quote.get_k_line(kline_params)
     print(f"K-lines: {klines}")

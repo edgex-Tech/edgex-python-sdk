@@ -336,8 +336,24 @@ asyncio.run(main())
 
 ### Market Data
 
+#### Available Enums
+
+**KlineType (K-line intervals):**
+- `KlineType.MINUTE_1`, `KlineType.MINUTE_5`, `KlineType.MINUTE_15`, `KlineType.MINUTE_30`
+- `KlineType.HOUR_1`, `KlineType.HOUR_2`, `KlineType.HOUR_4`, `KlineType.HOUR_6`, `KlineType.HOUR_8`, `KlineType.HOUR_12`
+- `KlineType.DAY_1`, `KlineType.WEEK_1`, `KlineType.MONTH_1`
+
+**PriceType (price types):**
+- `PriceType.LAST_PRICE` (default) - Latest market price
+- `PriceType.INDEX_PRICE` - Index price
+- `PriceType.ORACLE_PRICE` - Oracle price
+- `PriceType.ASK1_PRICE` - Best ask price
+- `PriceType.BID1_PRICE` - Best bid price
+- `PriceType.OPEN_INTEREST` - Open interest
+
+
 ```python
-from edgex_sdk import Client, GetKLineParams, GetOrderBookDepthParams
+from edgex_sdk import Client, GetKLineParams, GetOrderBookDepthParams, KlineType, PriceType
 
 # Get 24-hour market quotes for BNB2USDT (contract ID: 10000004)
 quote = await client.get_24_hour_quote("10000004")
@@ -346,9 +362,22 @@ print(f"Current price: {quote}")
 # Get K-line data for BTCUSDT (contract ID: 10000001)
 kline_params = GetKLineParams(
     contract_id="10000001",  # BTCUSDT
-    interval="1m",
-    size="10"
+    kline_type=KlineType.MINUTE_1,
+    price_type=PriceType.LAST_PRICE,
+    size=10
 )
+
+# With time filters (optional)
+# kline_params = GetKLineParams(
+#     contract_id="10000001",
+#     kline_type=KlineType.HOUR_1,
+#     price_type=PriceType.LAST_PRICE,
+#     size=20,
+#     filter_begin_kline_time_inclusive="1640995200000",  # Start timestamp
+#     filter_end_kline_time_exclusive="1640998800000"     # End timestamp
+# )
+
+
 klines = await client.quote.get_k_line(kline_params)
 print(f"K-lines: {klines}")
 

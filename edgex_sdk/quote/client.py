@@ -1,6 +1,42 @@
 from typing import Dict, Any, List
+from enum import Enum
 
 from ..internal.async_client import AsyncClient
+
+
+class KlineType(Enum):
+    """K-line type enumeration."""
+    UNKNOWN_KLINE_TYPE = 0
+    MINUTE_1 = 1
+    MINUTE_5 = 2
+    MINUTE_15 = 3
+    MINUTE_30 = 4
+    HOUR_1 = 11
+    HOUR_2 = 12
+    HOUR_4 = 13
+    HOUR_6 = 14
+    HOUR_8 = 15
+    HOUR_12 = 16
+    DAY_1 = 21
+    WEEK_1 = 31
+    MONTH_1 = 41
+
+
+class PriceType(Enum):
+    """Price type enumeration."""
+    UNKNOWN_PRICE_TYPE = 0
+    ORACLE_PRICE = 1
+    INDEX_PRICE = 2
+    LAST_PRICE = 3
+    ASK1_PRICE = 4
+    BID1_PRICE = 5
+    OPEN_INTEREST = 6
+
+
+
+
+
+
 
 
 class GetKLineParams:
@@ -9,18 +45,34 @@ class GetKLineParams:
     def __init__(
         self,
         contract_id: str,
-        interval: str,
-        size: str = "",
+        kline_type: KlineType,
+        price_type: PriceType = PriceType.LAST_PRICE,
+        size: int = 100,
         offset_data: str = "",
-        filter_start_time_inclusive: int = 0,
-        filter_end_time_exclusive: int = 0
+        filter_begin_kline_time_inclusive: str = "",
+        filter_end_kline_time_exclusive: str = ""
     ):
+        """
+        Initialize K-line parameters.
+
+        Args:
+            contract_id: Contract ID (string)
+            kline_type: K-line type (KlineType enum)
+            price_type: Price type (PriceType enum, defaults to LAST_PRICE)
+            size: Number of records to fetch (int, defaults to 100)
+            offset_data: Pagination offset data (string)
+            filter_begin_kline_time_inclusive: Start time filter (string timestamp)
+            filter_end_kline_time_exclusive: End time filter (string timestamp)
+        """
         self.contract_id = contract_id
-        self.interval = interval
+        self.kline_type = kline_type
+        self.price_type = price_type
         self.size = size
         self.offset_data = offset_data
-        self.filter_start_time_inclusive = filter_start_time_inclusive
-        self.filter_end_time_exclusive = filter_end_time_exclusive
+        self.filter_begin_kline_time_inclusive = filter_begin_kline_time_inclusive
+        self.filter_end_kline_time_exclusive = filter_end_kline_time_exclusive
+
+
 
 
 class GetOrderBookDepthParams:
@@ -169,25 +221,21 @@ class Client:
         url = f"{self.async_client.base_url}/api/v1/public/quote/getKline"
         query_params = {
             "contractId": params.contract_id,
-            "interval": params.interval
+            "klineType": params.kline_type.name,
+            "priceType": params.price_type.name,
+            "size": str(params.size)
         }
 
-        # Add pagination parameters
-        if params.size:
-            query_params["size"] = params.size
+        # Add optional parameters
         if params.offset_data:
             query_params["offsetData"] = params.offset_data
-
-        # Add time filters
-        if params.filter_start_time_inclusive > 0:
-            query_params["filterStartTimeInclusive"] = str(params.filter_start_time_inclusive)
-        if params.filter_end_time_exclusive > 0:
-            query_params["filterEndTimeExclusive"] = str(params.filter_end_time_exclusive)
+        if params.filter_begin_kline_time_inclusive:
+            query_params["filterBeginKlineTimeInclusive"] = params.filter_begin_kline_time_inclusive
+        if params.filter_end_kline_time_exclusive:
+            query_params["filterEndKlineTimeExclusive"] = params.filter_end_kline_time_exclusive
 
         # Public endpoint - use simple GET request
         await self.async_client._ensure_session()
-
-        url = f"{self.async_client.base_url}/api/v1/public/quote/getKline"
 
         try:
             async with self.async_client.session.get(url, params=query_params) as response:

@@ -3,7 +3,7 @@
 import unittest
 import logging
 
-from edgex_sdk import GetKLineParams, GetOrderBookDepthParams, GetMultiContractKLineParams
+from edgex_sdk import GetKLineParams, GetOrderBookDepthParams, GetMultiContractKLineParams, KlineType
 from tests.integration.public.base_test import BasePublicEndpointTest
 
 # Configure logging
@@ -40,8 +40,8 @@ class TestPublicQuoteAPI(BasePublicEndpointTest):
         # Create parameters
         params = GetKLineParams(
             contract_id=TEST_CONTRACT_ID,
-            interval="HOUR_1",
-            size="10"
+            kline_type=KlineType.HOUR_1,
+            size=10
         )
 
         # Get K-line data
