@@ -7,7 +7,7 @@ def read_readme():
 
 setup(
     name="edgex-python-sdk",
-    version="0.2.0",
+    version="0.3.0",
     description="A Python SDK for interacting with the EdgeX Exchange API",
     long_description=read_readme(),
     long_description_content_type="text/markdown",

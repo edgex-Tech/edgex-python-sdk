@@ -42,7 +42,7 @@ from .asset.client import (
 )
 from .ws.manager import Manager as WebSocketManager
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 __all__ = [
     "Client",
     "OrderType",
