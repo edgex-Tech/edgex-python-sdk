@@ -71,6 +71,28 @@ class GetAccountAssetSnapshotPageParams:
         self.filter_end_created_time_exclusive = filter_end_created_time_exclusive
 
 
+class RegisterAccountParams:
+    """Parameters for registering a new account."""
+
+    def __init__(
+        self,
+        l2_key: str,
+        l2_key_y_coordinate: str,
+        client_account_id: str
+    ):
+        """
+        Initialize register account parameters.
+
+        Args:
+            l2_key: L2 account key, globally unique. Corresponds to starkKey in starkEx (bigint as hex string)
+            l2_key_y_coordinate: Only used to verify if l2Signature is valid. Not returned to client users (bigint as hex string)
+            client_account_id: Client account ID for idempotency verification
+        """
+        self.l2_key = l2_key
+        self.l2_key_y_coordinate = l2_key_y_coordinate
+        self.client_account_id = client_account_id
+
+
 class Client:
     """Client for account-related API endpoints."""
 
@@ -260,6 +282,31 @@ class Client:
             method="GET",
             path="/api/v1/private/account/getAccountById",
             params=params
+        )
+
+    async def register_account(self, params: RegisterAccountParams) -> Dict[str, Any]:
+        """
+        Register a new account.
+
+        Args:
+            params: Register account parameters
+
+        Returns:
+            Dict[str, Any]: The registration response containing the new account ID
+
+        Raises:
+            ValueError: If the request fails
+        """
+        data = {
+            "l2Key": params.l2_key,
+            "l2KeyYCoordinate": params.l2_key_y_coordinate,
+            "clientAccountId": params.client_account_id
+        }
+
+        return await self.async_client.make_authenticated_request(
+            method="POST",
+            path="/api/v1/private/account/registerAccount",
+            data=data
         )
 
     async def get_account_deleverage_light(self) -> Dict[str, Any]:

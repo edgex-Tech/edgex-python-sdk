@@ -1,6 +1,7 @@
 import asyncio
 import binascii
 import hashlib
+import random
 import time
 import uuid
 from typing import Dict, Any, Optional, Tuple, List, Union
@@ -20,6 +21,8 @@ except ImportError:
 
 # Constants
 LIMIT_ORDER_WITH_FEE_TYPE = 3
+WITHDRAWAL_TYPE = 6
+WITHDRAWAL_TO_ADDRESS_TYPE = 7
 
 
 class L2Signature:
@@ -464,3 +467,74 @@ class AsyncClient:
         msg = self.signing_adapter.pedersen_hash([msg_int, packed_msg1])
 
         return msg
+
+    def calc_withdrawal_to_address_hash(
+        self,
+        asset_id_collateral: str,
+        position_id: str,
+        eth_address: str,
+        nonce: str,
+        expiration_timestamp: str,
+        amount: str
+    ) -> bytes:
+        """
+        Calculate the hash for a withdrawal to address using StarkEx protocol.
+
+        Args:
+            asset_id_collateral: The collateral asset ID (hex string)
+            position_id: The position ID (string)
+            eth_address: The Ethereum address (hex string)
+            nonce: The nonce (string)
+            expiration_timestamp: The expiration timestamp (string)
+            amount: The withdrawal amount (string)
+
+        Returns:
+            bytes: The calculated hash
+
+        Raises:
+            ValueError: If the calculation fails
+        """
+        # Convert hex string to integer for asset ID
+        w1 = int(asset_id_collateral[2:], 16) if asset_id_collateral.startswith('0x') else int(asset_id_collateral, 16)
+        w1 = w1 % FIELD_PRIME
+
+        # Convert eth address to integer
+        eth_addr_int = int(eth_address[2:], 16) if eth_address.startswith('0x') else int(eth_address, 16)
+        eth_addr_int = eth_addr_int % FIELD_PRIME
+
+        # Pack message according to Go implementation:
+        # w5 = WITHDRAWAL_TO_ADDRESS_TYPE * 2^64 + position_id * 2^32 + nonce * 2^64 + amount * 2^32 + expiration_timestamp * 2^49
+        w5 = WITHDRAWAL_TO_ADDRESS_TYPE
+        w5 = (w5 << 64) + self.to_big_int(position_id)
+        w5 = (w5 << 32) + self.to_big_int(nonce)
+        w5 = (w5 << 64) + self.to_big_int(amount)
+        w5 = (w5 << 32) + self.to_big_int(expiration_timestamp)
+        w5 = w5 << 49  # Padding
+        w5 = w5 % FIELD_PRIME  # Ensure within field
+
+        # Calculate nested Pedersen hash: Pedersen([Pedersen([w1, eth_address]), w5])
+        # First hash w1 and eth_address
+        first_hash = self.signing_adapter.pedersen_hash([w1, eth_addr_int])
+        first_hash_int = int.from_bytes(first_hash, byteorder='big')
+
+        # Then hash the result with w5
+        msg = self.signing_adapter.pedersen_hash([first_hash_int, w5])
+
+        return msg
+
+    def to_big_int(self, str: str) -> int:
+        return int(str[2:0], 16) % FIELD_PRIME if str.startswith('0x') else int(str, 10) % FIELD_PRIME
+
+    def get_random_client_id() -> str:
+        """
+        Generate a random client ID similar to JavaScript implementation.
+        
+        Returns:
+            str: Random client ID string
+        """
+        # Equivalent to Math.random().toString().slice(2).replace(/^0+/, "")
+        random_num = random.random()
+        client_id = str(random_num)[2:]  # Remove "0."
+        # Remove leading zeros
+        client_id = client_id.lstrip('0')
+        return client_id if client_id else '1'  # Ensure non-empty

@@ -1,5 +1,6 @@
 from typing import Dict, Any, List
 
+import time
 from ..internal.async_client import AsyncClient
 
 
@@ -18,10 +19,10 @@ class GetAssetOrdersParams:
 class CreateWithdrawalParams:
     """Parameters for creating a withdrawal."""
 
-    def __init__(self, coin_id: str, amount: str, address: str, tag: str = ""):
+    def __init__(self, coin_id: str, amount: str, eth_address: str, tag: str = ""):
         self.coin_id = coin_id
         self.amount = amount
-        self.address = address
+        self.eth_address = eth_address
         self.tag = tag
 
 
@@ -135,12 +136,7 @@ class Client:
 
     async def create_withdrawal(
         self,
-        coin_id: str,
-        amount: str,
-        address: str,
-        network: str,
-        memo: str = "",
-        client_order_id: str = None
+        param : CreateWithdrawalParams
     ) -> Dict[str, Any]:
         """
         Create a withdrawal request.
@@ -148,10 +144,7 @@ class Client:
         Args:
             coin_id: The coin ID
             amount: The withdrawal amount
-            address: The withdrawal address
-            network: The network
-            memo: Optional memo
-            client_order_id: Optional client order ID
+            eth_address: The Ethereum address to withdraw to
 
         Returns:
             Dict[str, Any]: The withdrawal result
@@ -159,21 +152,38 @@ class Client:
         Raises:
             ValueError: If the request fails
         """
+        position_id = str(self.async_client.get_account_id())
+        client_id = self.async_client.get_random_client_id()
+        nonce = self.async_client.calc_nonce(client_id)
+
+        l2_expire_time = int(time.time() * 1000) + (14 * 24 * 60 * 60 * 1000)  # 14 days
+        expire_time_unix = str(l2_expire_time)
+
+        sig_hash = self.async_client.calc_withdrawal_to_address_hash(
+            param.coin_id,
+            position_id,
+            param.eth_address,
+            nonce,
+            expire_time_unix,
+            param.amount
+        )
+
+        # Sign the order
+        sig = self.async_client.sign(sig_hash)
+
+        # Convert signature to string (include v component like Go SDK, even though it's empty)
+        sig_str = f"{sig.r}{sig.s}{sig.v if hasattr(sig, 'v') and sig.v else ''}"
+
+
         data = {
-            "accountId": str(self.async_client.get_account_id()),
-            "coinId": coin_id,
-            "amount": amount,
-            "address": address,
-            "network": network
+            "accountId": position_id,
+            "coinId": param.coin_id,
+            "amount": param.amount,
+            "ethAddress": param.eth_address,
+            "clientWithdrawId": client_id,
+            "expireTime": expire_time_unix,
+            "l2Signature": sig_str
         }
-
-        if memo:
-            data["memo"] = memo
-
-        if client_order_id:
-            data["clientOrderId"] = client_order_id
-        else:
-            data["clientOrderId"] = self.async_client.generate_uuid()
 
         return await self.async_client.make_authenticated_request(
             method="POST",
