@@ -300,7 +300,8 @@ class Client:
         data = {
             "l2Key": params.l2_key,
             "l2KeyYCoordinate": params.l2_key_y_coordinate,
-            "clientAccountId": params.client_account_id
+            "clientAccountId": params.client_account_id,
+            "accountId": str(self.async_client.get_account_id())
         }
 
         return await self.async_client.make_authenticated_request(

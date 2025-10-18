@@ -21,12 +21,13 @@ from edgex_sdk import (
     WebSocketManager
 )
 from edgex_sdk.account.client import RegisterAccountParams
+from edgex_sdk.asset.client import CreateWithdrawalParams
 
 
 async def main():
     # Load configuration from environment variables
-    base_url = os.getenv("EDGEX_BASE_URL", "https://testnet-internal.edgex.exchange")
-    account_id = int(os.getenv("EDGEX_ACCOUNT_ID", "665403845475566279"))
+    base_url = os.getenv("EDGEX_BASE_URL", "https://testnet.edgex.exchange")
+    account_id = int(os.getenv("EDGEX_ACCOUNT_ID", "665403845421039873"))
     stark_private_key = os.getenv("EDGEX_STARK_PRIVATE_KEY", "04a266bc1e005725a278034bc4ab0f3075a7110a47d390b0b1b7841cabac0c4d")
 
     # Create a new client
@@ -40,17 +41,22 @@ async def main():
     print(f"Line 39 result: {result}")
 
     registerParm = RegisterAccountParams(
-        l2_key="040e0affdb3cbf750a12cafddde904695db87f511853c259f294e2c81568ebd7",
-        l2_key_y_coordinate="041f933951a16a31d83109584614559b2edfb68735e03844c22acb2343b0a72c",
-        client_account_id="12345上山打老虎"
+        l2_key="0503fcc5930194246e5a41e690c72ff2075bfd7b97fb25dbbbdc0c57fb072ee3",
+        l2_key_y_coordinate="05c5725ca5111e6e0f67fc2002ffb98ed3396ad5b3b0445d9dd5606953148a50",
+        client_account_id="12345"
     )
-    client.account.register_account(registerParm)
+    registerResult = await client.account.register_account(registerParm)
+    print(f"Line 54 registerResult: {registerResult}")
     
-'''
-    # Get server time
-    server_time = await client.get_server_time()
-    print(f"Server Time: {server_time}")
+    withdrawResult = await client.asset.create_withdrawal(CreateWithdrawalParams(
+        coin_id="1000",
+        amount="0.001",
+        eth_address="0x83D9424105c689e9DC0dfB54496B7F722276fAFE",
+        tag=""
+    ))
+    print(f"Line 72 withdrawResult: {withdrawResult}")
 
+'''
     # Get exchange metadata
     metadata = await client.get_metadata()
     print(f"Available contracts: {len(metadata.get('data', {}).get('contractList', []))}")
