@@ -4,7 +4,7 @@ import unittest
 import logging
 from typing import Dict, Any
 
-from edgex_sdk import GetKLineParams, GetOrderBookDepthParams, GetMultiContractKLineParams
+from edgex_sdk import GetKLineParams, GetOrderBookDepthParams, GetMultiContractKLineParams, KlineType
 from tests.integration.base_test import BaseIntegrationTest
 from tests.integration.config import TEST_CONTRACT_ID
 
@@ -45,8 +45,8 @@ class TestQuoteAPI(BaseIntegrationTest):
         # Create parameters
         params = GetKLineParams(
             contract_id=TEST_CONTRACT_ID,
-            interval="1m",
-            size="10"
+            kline_type=KlineType.MINUTE_1,
+            size=10
         )
 
         # Get K-line data

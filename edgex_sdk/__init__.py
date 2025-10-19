@@ -23,7 +23,9 @@ from .account.client import (
 from .quote.client import (
     GetKLineParams,
     GetOrderBookDepthParams,
-    GetMultiContractKLineParams
+    GetMultiContractKLineParams,
+    KlineType,
+    PriceType
 )
 from .transfer.client import (
     GetTransferOutByIdParams,
@@ -40,7 +42,7 @@ from .asset.client import (
 )
 from .ws.manager import Manager as WebSocketManager
 
-__version__ = "0.2.1"
+__version__ = "0.3.0"
 __all__ = [
     "Client",
     "OrderType",
@@ -57,6 +59,8 @@ __all__ = [
     "GetKLineParams",
     "GetOrderBookDepthParams",
     "GetMultiContractKLineParams",
+    "KlineType",
+    "PriceType",
     "GetTransferOutByIdParams",
     "GetTransferInByIdParams",
     "GetWithdrawAvailableAmountParams",
