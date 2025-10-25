@@ -134,10 +134,7 @@ class Client:
             params=params
         )
 
-    async def create_withdrawal(
-        self,
-        param : CreateWithdrawalParams
-    ) -> Dict[str, Any]:
+    async def create_withdrawal(self, param : CreateWithdrawalParams, metadata: Dict[str, Any]) -> Dict[str, Any]:
         """
         Create a withdrawal request.
 
@@ -152,21 +149,39 @@ class Client:
         Raises:
             ValueError: If the request fails
         """
+        coin = None
+        for coin_data in metadata['coinList']:
+            if coin_data.get('coinId') == param.coin_id:
+                coin = coin_data
+                break
+
+        if not coin:
+            raise ValueError(f"coin not found: {param.coin_id}")
+
         position_id = str(self.async_client.get_account_id())
         client_id = self.async_client.get_random_client_id()
         nonce = self.async_client.calc_nonce(client_id)
 
         l2_expire_time = int(time.time() * 1000) + (14 * 24 * 60 * 60 * 1000)  # 14 days
-        expire_time_unix = str(l2_expire_time)
+        l2_expire_hour = l2_expire_time / (60 * 60 * 1000)
+        expire_time_unix = str(int(l2_expire_hour))
+        normalized_amount = str(int(float(param.amount) * 10 ** int(coin.get('decimal', 6))))
 
         sig_hash = self.async_client.calc_withdrawal_to_address_hash(
-            param.coin_id,
+            coin.get('starkExAssetId', ''),
             position_id,
             param.eth_address,
             nonce,
             expire_time_unix,
-            param.amount
+            normalized_amount
         )
+        # print all params for calc_withdrawal_to_address_hash
+        print(f"coin_id: {coin.get('starkExAssetId', '')}")
+        print(f"position_id: {position_id}")
+        print(f"eth_address: {param.eth_address}")
+        print(f"nonce: {nonce}")
+        print(f"expire_time_unix: {expire_time_unix}")
+        print(f"normalized_amount: {normalized_amount}")
 
         # Sign the order
         sig = self.async_client.sign(sig_hash)
@@ -181,9 +196,10 @@ class Client:
             "amount": param.amount,
             "ethAddress": param.eth_address,
             "clientWithdrawId": client_id,
-            "expireTime": expire_time_unix,
+            "expireTime": str(l2_expire_time),
             "l2Signature": sig_str
         }
+        print(f"data: {data}")
 
         return await self.async_client.make_authenticated_request(
             method="POST",

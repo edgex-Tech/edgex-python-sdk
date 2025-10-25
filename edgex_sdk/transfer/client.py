@@ -1,6 +1,19 @@
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
+from decimal import Decimal
+import time
+from datetime import datetime
+from enum import Enum
 
 from ..internal.async_client import AsyncClient
+
+
+class TransferReason(Enum):
+    """Transfer reason enumeration."""
+    USER_TRANSFER = "USER_TRANSFER"
+    FAST_WITHDRAW = "FAST_WITHDRAW"
+    CROSS_DEPOSIT = "CROSS_DEPOSIT"
+    CROSS_WITHDRAW = "CROSS_WITHDRAW"
+    UNRECOGNIZED = "UNRECOGNIZED"
 
 
 class GetTransferOutByIdParams:
@@ -31,17 +44,33 @@ class CreateTransferOutParams:
         self,
         coin_id: str,
         amount: str,
-        address: str,
-        network: str,
-        memo: str = "",
-        client_order_id: str = None
+        receiver_account_id: str,
+        receiver_l2_key: str,
+        transfer_reason: TransferReason = TransferReason.USER_TRANSFER,
+        expire_time: Optional[datetime] = None,
+        extra_type: Optional[str] = None,
+        extra_data_json: Optional[str] = None
     ):
         self.coin_id = coin_id
         self.amount = amount
-        self.address = address
-        self.network = network
-        self.memo = memo
-        self.client_order_id = client_order_id
+        self.receiver_account_id = receiver_account_id
+        self.receiver_l2_key = receiver_l2_key
+
+        # Validate and set transfer_reason
+        if isinstance(transfer_reason, str):
+            # Support backward compatibility by converting string to enum
+            try:
+                self.transfer_reason = TransferReason(transfer_reason)
+            except ValueError:
+                raise ValueError(f"Invalid transfer_reason: {transfer_reason}. Must be one of: {[e.value for e in TransferReason]}")
+        elif isinstance(transfer_reason, TransferReason):
+            self.transfer_reason = transfer_reason
+        else:
+            raise ValueError(f"transfer_reason must be a TransferReason enum or string, got {type(transfer_reason)}")
+
+        self.expire_time = expire_time
+        self.extra_type = extra_type
+        self.extra_data_json = extra_data_json
 
 
 class GetTransferOutPageParams:
@@ -162,42 +191,120 @@ class Client:
 
         Args:
             params: Transfer out parameters
-            metadata: Exchange metadata (optional, not used in current implementation)
+            metadata: Exchange metadata containing coin information
 
         Returns:
             Dict[str, Any]: The created transfer out order
 
         Raises:
-            ValueError: If the request fails
+            ValueError: If the request fails or required metadata is missing
         """
-        client_order_id = params.client_order_id or self.async_client.generate_uuid()
+        # Get collateral coin from metadata (following Golang logic)
+        if not metadata or not metadata.get('global') or not metadata['global'].get('starkExCollateralCoin'):
+            raise ValueError("metadata global is nil")
 
+        coin = metadata['global']['starkExCollateralCoin']
+        asset_id = self.async_client.hex_to_big_integer(coin['starkExAssetId'])
+
+        # Print coin ID for debugging (matching Golang)
+        print(coin['coinId'])
+
+        # Generate client transfer ID if not provided
+        client_transfer_id = self.async_client.get_random_client_id()
+
+        # Parse decimal amount
+        try:
+            amount_dm = Decimal(params.amount)
+        except Exception as e:
+            raise ValueError(f"failed to parse amount: {e}")
+
+        # Calculate nonce and expiration time (following Golang logic)
+        nonce = self.async_client.calc_nonce(client_transfer_id)
+
+        # Add 14 days to the provided expire_time (matching Golang logic)
+        if params.expire_time:
+            expire_time_plus_14_days = params.expire_time.timestamp() + (14 * 24 * 60 * 60)
+            l2_expire_time = int(expire_time_plus_14_days * 1000)  # Convert to milliseconds
+        else:
+            l2_expire_time = int((time.time() + 14 * 24 * 60 * 60) * 1000)  # 14 days from now in milliseconds
+        l2_expire_hour = l2_expire_time // (60 * 60 * 1000)
+
+        # Remove 0x prefix from receiver L2 key if present
+        receiver_l2_key = params.receiver_l2_key
+        if receiver_l2_key.startswith('0x'):
+            receiver_l2_key = receiver_l2_key[2:]
+
+        # Convert receiver L2 key to big.Int
+        try:
+            receiver_public_key = int(receiver_l2_key, 16)
+        except ValueError:
+            raise ValueError(f"invalid receiver L2 key format: {params.receiver_l2_key}")
+
+        # Parse receiver account ID
+        try:
+            receiver_position_id = int(params.receiver_account_id)
+        except ValueError as e:
+            raise ValueError(f"invalid receiver account ID: {e}")
+
+        # Get position IDs
+        sender_position_id = self.async_client.get_account_id()
+        fee_position_id = sender_position_id  # Fee position is same as sender
+
+        # Calculate max amount fee
+        # 0 for internal transfer
+        max_amount_fee = 0
+
+        # Convert amount to protocol format (shift by 6 decimal places)
+        shift_factor = Decimal('1000000')
+        amount = int(amount_dm * shift_factor)
+
+        # Calculate transfer hash and sign it (following Golang logic)
+        msg_hash = self.async_client.calc_transfer_hash(
+            asset_id,
+            0,  # Use 0 as second asset ID (matching Golang: big.NewInt(0))
+            receiver_public_key,
+            sender_position_id,
+            receiver_position_id,
+            fee_position_id,
+            nonce,
+            amount,
+            max_amount_fee,
+            l2_expire_hour
+        )
+        signature = self.async_client.sign(msg_hash)
+
+        # Build request body (following Golang logic)
         data = {
             "accountId": str(self.async_client.get_account_id()),
             "coinId": params.coin_id,
             "amount": params.amount,
-            "address": params.address,
-            "network": params.network,
-            "clientOrderId": client_order_id
+            "receiverAccountId": params.receiver_account_id,
+            "receiverL2Key": params.receiver_l2_key,
+            "clientTransferId": client_transfer_id,
+            "transferReason": params.transfer_reason.value,  # Use enum value
+            "l2Nonce": str(nonce),
+            "l2ExpireTime": str(l2_expire_time),
+            "l2Signature": f"{signature.r}{signature.s}"
         }
 
-        if params.memo:
-            data["memo"] = params.memo
+        # Add optional fields if provided
+        if params.extra_type is not None:
+            data["extraType"] = params.extra_type
+        if params.extra_data_json is not None:
+            data["extraDataJson"] = params.extra_data_json
 
-        # TODO: Implement signature calculation for transfer out
-        # This would require:
-        # 1. Asset ID from metadata based on coin_id
-        # 2. Receiver public key from address
-        # 3. Position IDs for sender, receiver, and fee
-        # 4. Proper expiration time calculation
-        # 5. Call to calc_transfer_hash and sign the result
-        # For now, the API call is made without signature (may fail on actual server)
-
-        return await self.async_client.make_authenticated_request(
+        # Make the request and get response
+        response = await self.async_client.make_authenticated_request(
             method="POST",
             path="/api/v1/private/transfer/createTransferOut",
             data=data
         )
+
+        # Check response code (matching Golang error handling)
+        if response.get("code") != "SUCCESS":
+            raise ValueError(f"request failed with code: {response.get('code')}")
+
+        return response
 
     async def get_transfer_out_page(
         self,

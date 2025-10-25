@@ -12,6 +12,7 @@ This example demonstrates the basic functionality of the SDK:
 
 import asyncio
 import os
+from datetime import datetime, timedelta
 
 from edgex_sdk import (
     Client,
@@ -19,17 +20,21 @@ from edgex_sdk import (
     GetKLineParams,
     GetOrderBookDepthParams,
     KlineType,
-    WebSocketManager
+    WebSocketManager,
+    GetWithdrawalRecordsParams,
+    CreateTransferOutParams,
+    TransferReason
 )
 from edgex_sdk.account.client import RegisterAccountParams
 from edgex_sdk.asset.client import CreateWithdrawalParams
+from edgex_sdk.order.types import CreateOrderParams, OrderType
 
 
 async def main():
     # Load configuration from environment variables
     base_url = os.getenv("EDGEX_BASE_URL", "https://testnet.edgex.exchange")
-    account_id = int(os.getenv("EDGEX_ACCOUNT_ID", "665403845421039873"))
-    stark_private_key = os.getenv("EDGEX_STARK_PRIVATE_KEY", "04a266bc1e005725a278034bc4ab0f3075a7110a47d390b0b1b7841cabac0c4d")
+    account_id = int(os.getenv("EDGEX_ACCOUNT_ID", "675511695258419841"))
+    stark_private_key = os.getenv("EDGEX_STARK_PRIVATE_KEY", "05495e45ffcda8224eeac73e279b804308c6dd93ea950f142baa7165968d90cb")
 
     # Create a new client
     client = Client(
@@ -37,34 +42,28 @@ async def main():
         account_id=account_id,
         stark_private_key=stark_private_key
     )
-    
-    result = await client.account.get_account_asset()
-    print(f"Line 39 result: {result}")
-
-    registerParm = RegisterAccountParams(
-        l2_key="0503fcc5930194246e5a41e690c72ff2075bfd7b97fb25dbbbdc0c57fb072ee3",
-        l2_key_y_coordinate="05c5725ca5111e6e0f67fc2002ffb98ed3396ad5b3b0445d9dd5606953148a50",
-        client_account_id="12345"
-    )
-    registerResult = await client.account.register_account(registerParm)
-    print(f"Line 54 registerResult: {registerResult}")
-    
-    withdrawResult = await client.asset.create_withdrawal(CreateWithdrawalParams(
-        coin_id="1000",
-        amount="0.001",
-        eth_address="0x83D9424105c689e9DC0dfB54496B7F722276fAFE",
-        tag=""
-    ))
-    print(f"Line 72 withdrawResult: {withdrawResult}")
-
-'''
-    # Get exchange metadata
+    # Get exchange metadata first (required for transfer operations)
     metadata = await client.get_metadata()
-    print(f"Available contracts: {len(metadata.get('data', {}).get('contractList', []))}")
+    if not metadata:
+        print("Failed to get metadata")
+        return
 
     # Get account assets
     assets = await client.get_account_asset()
     print(f"Account Assets: {assets}")
+
+    # Get K-line data for BTCUSDT (contract ID: 10000001)
+    kline_params = GetKLineParams(
+        contract_id="10000001",  # BTCUSDT
+        kline_type=KlineType.MINUTE_1,
+        size=10
+    )
+    klines = await client.quote.get_k_line(kline_params)
+    print(f"K-lines: {klines}")
+
+    # Get exchange metadata
+    metadata = await client.get_metadata()
+    print(f"Available contracts: {len(metadata.get('data', {}).get('contractList', []))}")
 
     # Get account positions
     positions = await client.get_account_positions()
@@ -92,13 +91,61 @@ async def main():
     print(f"Order Book Depth: {depth}")
 
     # Create a limit order (commented out to avoid actual order creation)
-    # order = await client.create_limit_order(
-    #     contract_id="10000004",  # BNBUSDT
-    #     size="0.01",
-    #     price="600.00",
-    #     side=OrderSide.BUY
-    # )
-    # print(f"Order created: {order}")
+    order = await client.create_order(CreateOrderParams(
+        contract_id="10000004",  # BNBUSDT
+        size="0.01",
+        price="600.00",
+        type=OrderType.LIMIT,
+        side=OrderSide.BUY.value
+    ))
+    print(f"Order created: {order}")
+
+    # Create a market order 
+    order = await client.create_order(CreateOrderParams(
+        contract_id="10000004",  # BNBUSDT
+        size="0.01",
+        price="0",
+        type=OrderType.MARKET,
+        side=OrderSide.BUY.value
+    ))
+    print(f"Order created: {order}")
+
+    # Create a transfer out order with new optional parameters
+    try:
+        # Set expiration time to 24 hours from now
+        expire_time = datetime.now() + timedelta(hours=24)
+
+        transfer_result = await client.create_transfer_out(
+            CreateTransferOutParams(
+                coin_id="1000",
+                amount="10",
+                receiver_account_id="675524849547870757",
+                receiver_l2_key="0x0711bcc79aecf8533e94d9041d02159d45d239fa78f6bc2b1f2efede31e321b9",
+                transfer_reason=TransferReason.USER_TRANSFER,
+                expire_time=expire_time,
+                extra_type="CUSTOM_TYPE",
+                extra_data_json='{"custom_field": "custom_value"}'
+            ))
+        print(f"Transfer out result: {transfer_result}")
+    except ValueError as e:
+        print(f"Failed to create transfer out: {e}")
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+
+    # Create a withdrawal order
+    withdrawResult = await client.create_normal_withdrawal(CreateWithdrawalParams(
+        coin_id="1000",
+        amount="10",
+        eth_address="0x94C2bF0F2254eD91a5fBbc8c9F3f3433f18480D8",
+        tag=""
+    ))
+    print(f"WithdrawResult: {withdrawResult}")
+
+    # Get withdrawal records with default parameters
+    withdrawal_params = GetWithdrawalRecordsParams(size="10")
+    withdrawResult = await client.asset.get_withdrawal_records(withdrawal_params)
+    print(f"withdrawResult: {withdrawResult}")
+
 
     # WebSocket example
     ws_url = os.getenv("EDGEX_WS_URL", "wss://quote-testnet.edgex.exchange")
@@ -127,7 +174,6 @@ async def main():
 
     # Disconnect all connections
     ws_manager.disconnect_all()
-'''
 
 if __name__ == "__main__":
     asyncio.run(main())

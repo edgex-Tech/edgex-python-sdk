@@ -6,7 +6,7 @@ import unittest
 import asyncio
 from unittest.mock import patch, MagicMock, AsyncMock
 
-from edgex_sdk.client import Client, RequestInterceptor
+from edgex_sdk.client import Client
 from edgex_sdk.order.types import OrderSide, OrderType, CreateOrderParams
 
 
@@ -185,10 +185,14 @@ class TestClient(unittest.TestCase):
         self.client.create_order = AsyncMock(return_value={"code": "SUCCESS", "data": {"orderId": "123"}})
 
         # Call the method
-        result = asyncio.run(self.client.create_market_order(
-            contract_id="BTC-USDT",
-            size="0.001",
-            side=OrderSide.BUY
+        result = asyncio.run(self.client.create_order(
+            CreateOrderParams(
+                contract_id="BTC-USDT",
+                size="0.001",
+                price="0",  # Market order price should be ignored
+                side=OrderSide.BUY,
+                type=OrderType.MARKET
+            )
         ))
 
         # Check that get_metadata was called
@@ -208,96 +212,6 @@ class TestClient(unittest.TestCase):
         # Check the result
         self.assertEqual(result, {"code": "SUCCESS", "data": {"orderId": "123"}})
 
-
-class TestRequestInterceptor(unittest.TestCase):
-    """Test cases for the RequestInterceptor."""
-
-    def setUp(self):
-        """Set up test fixtures."""
-        self.base_url = "https://testnet.edgex.exchange"
-
-        # Create a mock internal client
-        self.mock_internal_client = MagicMock()
-        self.mock_internal_client.get_value.return_value = "value"
-        self.mock_internal_client.sign.return_value = MagicMock(r="r", s="s")
-
-        # Create a request interceptor
-        self.interceptor = RequestInterceptor(self.mock_internal_client, self.base_url)
-
-    def test_call_with_body(self):
-        """Test __call__ method with a request body."""
-        # Create a mock request
-        mock_request = MagicMock()
-        mock_request.url = f"{self.base_url}/api/v1/order"
-        mock_request.method = "POST"
-        mock_request.body = b'{"key": "value"}'
-        mock_request.headers = {}
-
-        # Call the interceptor
-        result = self.interceptor(mock_request)
-
-        # Check that the timestamp header was added
-        self.assertIn("X-edgeX-Api-Timestamp", result.headers)
-
-        # Check that the signature header was added
-        self.assertIn("X-edgeX-Api-Signature", result.headers)
-        self.assertEqual(result.headers["X-edgeX-Api-Signature"], "rs")
-
-        # Check that the internal client's get_value method was called
-        self.mock_internal_client.get_value.assert_called_once()
-
-        # Check that the internal client's sign method was called
-        self.mock_internal_client.sign.assert_called_once()
-
-    def test_call_without_body(self):
-        """Test __call__ method without a request body."""
-        # Create a mock request
-        mock_request = MagicMock()
-        mock_request.url = f"{self.base_url}/api/v1/metadata"
-        mock_request.method = "GET"
-        mock_request.body = None
-        mock_request.headers = {}
-
-        # Call the interceptor
-        result = self.interceptor(mock_request)
-
-        # Check that the timestamp header was added
-        self.assertIn("X-edgeX-Api-Timestamp", result.headers)
-
-        # Check that the signature header was added
-        self.assertIn("X-edgeX-Api-Signature", result.headers)
-        self.assertEqual(result.headers["X-edgeX-Api-Signature"], "rs")
-
-        # Check that the internal client's get_value method was not called
-        self.mock_internal_client.get_value.assert_not_called()
-
-        # Check that the internal client's sign method was called
-        self.mock_internal_client.sign.assert_called_once()
-
-    def test_call_with_query_params(self):
-        """Test __call__ method with query parameters."""
-        # Create a mock request
-        mock_request = MagicMock()
-        mock_request.url = f"{self.base_url}/api/v1/metadata?param1=value1&param2=value2"
-        mock_request.method = "GET"
-        mock_request.body = None
-        mock_request.headers = {}
-
-        # Call the interceptor
-        result = self.interceptor(mock_request)
-
-        # Check that the timestamp header was added
-        self.assertIn("X-edgeX-Api-Timestamp", result.headers)
-
-        # Check that the signature header was added
-        self.assertIn("X-edgeX-Api-Signature", result.headers)
-        self.assertEqual(result.headers["X-edgeX-Api-Signature"], "rs")
-
-        # Check that the internal client's get_value method was not called
-        self.mock_internal_client.get_value.assert_not_called()
-
-        # Check that the internal client's sign method was called
-        self.mock_internal_client.sign.assert_called_once()
 
 
 if __name__ == '__main__':

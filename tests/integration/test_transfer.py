@@ -10,7 +10,8 @@ from edgex_sdk import (
     GetWithdrawAvailableAmountParams,
     CreateTransferOutParams,
     GetTransferOutPageParams,
-    GetTransferInPageParams
+    GetTransferInPageParams,
+    TransferReason
 )
 from tests.integration.base_test import BaseIntegrationTest
 
@@ -159,28 +160,25 @@ class TestTransferAPI(BaseIntegrationTest):
         """Test create_transfer_out method validation (without actually creating)."""
         # Test parameter validation without actually submitting
         params = CreateTransferOutParams(
-            coin_id="2",  # USDT
-            amount="0.001",  # Very small amount
-            address="0x1234567890123456789012345678901234567890",  # Dummy address
-            network="ethereum"
+            coin_id="1000",
+            amount="10",
+            receiver_account_id="675524849547870757",
+            receiver_l2_key="0x0711bcc79aecf8533e94d9041d02159d45d239fa78f6bc2b1f2efede31e321b9",
+            transfer_reason=TransferReason.USER_TRANSFER
         )
-
-        # Mock metadata (would normally come from API)
-        metadata = {
-            "contracts": {
-                "2": {
-                    "assetId": "0x1234567890abcdef",
-                    "quantum": "1000000"
-                }
-            }
-        }
 
         # We won't actually call the API to avoid creating real transfers
         # Just test that the parameters are properly structured
         self.assertIsInstance(params.coin_id, str)
         self.assertIsInstance(params.amount, str)
-        self.assertIsInstance(params.address, str)
-        self.assertIsInstance(metadata, dict)
+        self.assertIsInstance(params.receiver_account_id, str)
+        self.assertIsInstance(params.receiver_l2_key, str)
+        self.assertEqual(params.transfer_reason, TransferReason.USER_TRANSFER)
+
+        # Test optional parameters
+        self.assertIsNone(params.expire_time)
+        self.assertIsNone(params.extra_type)
+        self.assertIsNone(params.extra_data_json)
 
         logger.info("Transfer out parameter validation passed")
         logger.warning("Actual transfer creation skipped for safety")

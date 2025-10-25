@@ -101,7 +101,7 @@ class CreateOrderParams:
     type: OrderType
     side: str
     client_order_id: Optional[str] = None
-    l2_expire_time: Optional[int] = None
+    expire_time: Optional[int] = None
     time_in_force: Optional[str] = None
     reduce_only: bool = False
 

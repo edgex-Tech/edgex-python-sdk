@@ -33,7 +33,8 @@ from .transfer.client import (
     GetWithdrawAvailableAmountParams,
     CreateTransferOutParams,
     GetTransferOutPageParams,
-    GetTransferInPageParams
+    GetTransferInPageParams,
+    TransferReason
 )
 from .asset.client import (
     GetAssetOrdersParams,
@@ -67,6 +68,7 @@ __all__ = [
     "CreateTransferOutParams",
     "GetTransferOutPageParams",
     "GetTransferInPageParams",
+    "TransferReason",
     "GetAssetOrdersParams",
     "CreateWithdrawalParams",
     "GetWithdrawalRecordsParams",

@@ -33,12 +33,6 @@ class PriceType(Enum):
     OPEN_INTEREST = 6
 
 
-
-
-
-
-
-
 class GetKLineParams:
     """Parameters for getting K-line data."""
 
@@ -233,6 +227,8 @@ class Client:
             query_params["filterBeginKlineTimeInclusive"] = params.filter_begin_kline_time_inclusive
         if params.filter_end_kline_time_exclusive:
             query_params["filterEndKlineTimeExclusive"] = params.filter_end_kline_time_exclusive
+
+        print(query_params)
 
         # Public endpoint - use simple GET request
         await self.async_client._ensure_session()

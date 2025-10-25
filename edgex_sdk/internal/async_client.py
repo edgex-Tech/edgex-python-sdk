@@ -1,7 +1,6 @@
 import asyncio
 import binascii
 import hashlib
-import random
 import time
 import uuid
 from typing import Dict, Any, Optional, Tuple, List, Union
@@ -141,10 +140,6 @@ class AsyncClient:
         except Exception as e:
             raise ValueError(f"failed to sign message: {str(e)}")
 
-    def generate_uuid(self) -> str:
-        """Generate a UUID for client order IDs."""
-        return str(uuid.uuid4())
-
     def calc_nonce(self, client_order_id: str) -> int:
         """
         Calculate a nonce from a client order ID.
@@ -200,6 +195,9 @@ class AsyncClient:
         content_hash = keccak_hash.digest()
         
         sig = self.sign(content_hash)
+
+        print(f"sign_content: {sign_content}")
+        print(f"sign: {sig.r}{sig.s}")
         
         # Prepare headers
         headers = {
@@ -473,7 +471,7 @@ class AsyncClient:
         asset_id_collateral: str,
         position_id: str,
         eth_address: str,
-        nonce: str,
+        nonce: int,
         expiration_timestamp: str,
         amount: str
     ) -> bytes:
@@ -506,7 +504,7 @@ class AsyncClient:
         # w5 = WITHDRAWAL_TO_ADDRESS_TYPE * 2^64 + position_id * 2^32 + nonce * 2^64 + amount * 2^32 + expiration_timestamp * 2^49
         w5 = WITHDRAWAL_TO_ADDRESS_TYPE
         w5 = (w5 << 64) + self.to_big_int(position_id)
-        w5 = (w5 << 32) + self.to_big_int(nonce)
+        w5 = (w5 << 32) + nonce
         w5 = (w5 << 64) + self.to_big_int(amount)
         w5 = (w5 << 32) + self.to_big_int(expiration_timestamp)
         w5 = w5 << 49  # Padding
@@ -522,19 +520,32 @@ class AsyncClient:
 
         return msg
 
-    def to_big_int(self, str: str) -> int:
-        return int(str[2:0], 16) % FIELD_PRIME if str.startswith('0x') else int(str, 10) % FIELD_PRIME
+    def to_big_int(self, str_val: str) -> int:
+        """Convert a string to a big integer, handling hex and decimal formats."""
+        return int(str_val[2:], 16) % FIELD_PRIME if str_val.startswith('0x') else int(str_val, 10) % FIELD_PRIME
 
-    def get_random_client_id() -> str:
+    def hex_to_big_integer(self, hex_str: str) -> int:
         """
-        Generate a random client ID similar to JavaScript implementation.
-        
+        Convert a hex string to a big integer.
+
+        Args:
+            hex_str: Hex string (with or without 0x prefix)
+
         Returns:
-            str: Random client ID string
+            int: The big integer value
         """
-        # Equivalent to Math.random().toString().slice(2).replace(/^0+/, "")
-        random_num = random.random()
-        client_id = str(random_num)[2:]  # Remove "0."
-        # Remove leading zeros
-        client_id = client_id.lstrip('0')
-        return client_id if client_id else '1'  # Ensure non-empty
+        if hex_str.startswith('0x'):
+            hex_str = hex_str[2:]
+        return int(hex_str, 16)
+
+    def get_random_client_id(self) -> str:
+        """
+        Generate a client ID using nanosecond timestamp.
+
+        Returns:
+            str: Client ID string based on current nanosecond timestamp
+        """
+        # Equivalent to Go: nanoTimestamp := time.Now().UnixNano()
+        # return strconv.FormatInt(nanoTimestamp, 10)
+        nano_timestamp = time.time_ns()
+        return str(nano_timestamp)
