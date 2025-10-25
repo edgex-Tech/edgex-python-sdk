@@ -9,7 +9,8 @@ from .types import (
     GetActiveOrderParams,
     OrderFillTransactionParams,
     TimeInForce,
-    OrderType
+    OrderType,
+    OrderSide
 )
 
 
@@ -118,7 +119,7 @@ class Client:
             contract.get("starkExSyntheticAssetId", ""),
             quote_coin.get("starkExAssetId", ""),
             quote_coin.get("starkExAssetId", ""),
-            params.side == "BUY",
+            params.side == OrderSide.BUY,
             amount_synthetic,
             amount_collateral,
             int(max_amount_fee),
@@ -126,19 +127,6 @@ class Client:
             self.async_client.get_account_id(),
             l2_expire_hour
         )
-
-        #print all params for calc_limit_order_hash
-        print(f"contract.get('starkExSyntheticAssetId'): {contract.get('starkExSyntheticAssetId')}")
-        print(f"quote_coin.get('starkExAssetId'): {quote_coin.get('starkExAssetId')}")
-        print(f"quote_coin.get('starkExAssetId'): {quote_coin.get('starkExAssetId')}")
-        print(f"params.side == 'BUY': {params.side == 'BUY'}")
-        print(f"amount_synthetic: {amount_synthetic}")
-        print(f"amount_collateral: {amount_collateral}")
-        print(f"int(max_amount_fee): {int(max_amount_fee)}")
-        print(f"nonce: {nonce}")
-        print(f"self.async_client.get_account_id(): {self.async_client.get_account_id()}")
-        print(f"l2_expire_hour: {l2_expire_hour}")
-        print(f"msg_hash: {msg_hash.hex()}")
 
         try:
             signature = self.async_client.sign(msg_hash)
@@ -154,7 +142,7 @@ class Client:
             "price": params.price,
             "size": params.size,
             "type": params.type.value,
-            "side": params.side,
+            "side": params.side.value,
             "timeInForce": params.time_in_force,
             "clientOrderId": client_order_id,
             "expireTime": str(expire_time),
