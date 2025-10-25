@@ -33,8 +33,8 @@ from edgex_sdk.order.types import CreateOrderParams, OrderType
 async def main():
     # Load configuration from environment variables
     base_url = os.getenv("EDGEX_BASE_URL", "https://testnet.edgex.exchange")
-    account_id = int(os.getenv("EDGEX_ACCOUNT_ID", "675511695258419841"))
-    stark_private_key = os.getenv("EDGEX_STARK_PRIVATE_KEY", "05495e45ffcda8224eeac73e279b804308c6dd93ea950f142baa7165968d90cb")
+    account_id = int(os.getenv("EDGEX_ACCOUNT_ID", "your-account-id"))
+    stark_private_key = os.getenv("EDGEX_STARK_PRIVATE_KEY", "your-stark-private-key")
 
     # Create a new client
     client = Client(
@@ -119,8 +119,8 @@ async def main():
             CreateTransferOutParams(
                 coin_id="1000",
                 amount="10",
-                receiver_account_id="675524849547870757",
-                receiver_l2_key="0x0711bcc79aecf8533e94d9041d02159d45d239fa78f6bc2b1f2efede31e321b9",
+                receiver_account_id="your-receiver-account-id",
+                receiver_l2_key="your-receiver-l2-key", # "0x111111"
                 transfer_reason=TransferReason.USER_TRANSFER,
                 expire_time=expire_time,
                 extra_type="CUSTOM_TYPE",
@@ -136,7 +136,7 @@ async def main():
     withdrawResult = await client.create_normal_withdrawal(CreateWithdrawalParams(
         coin_id="1000",
         amount="10",
-        eth_address="0x94C2bF0F2254eD91a5fBbc8c9F3f3433f18480D8",
+        eth_address="your-eth-address", # "0x111111"
         tag=""
     ))
     print(f"WithdrawResult: {withdrawResult}")
