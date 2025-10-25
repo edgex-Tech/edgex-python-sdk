@@ -175,13 +175,6 @@ class Client:
             expire_time_unix,
             normalized_amount
         )
-        # print all params for calc_withdrawal_to_address_hash
-        print(f"coin_id: {coin.get('starkExAssetId', '')}")
-        print(f"position_id: {position_id}")
-        print(f"eth_address: {param.eth_address}")
-        print(f"nonce: {nonce}")
-        print(f"expire_time_unix: {expire_time_unix}")
-        print(f"normalized_amount: {normalized_amount}")
 
         # Sign the order
         sig = self.async_client.sign(sig_hash)
@@ -199,7 +192,6 @@ class Client:
             "expireTime": str(l2_expire_time),
             "l2Signature": sig_str
         }
-        print(f"data: {data}")
 
         return await self.async_client.make_authenticated_request(
             method="POST",

@@ -130,7 +130,7 @@ class Client:
 
         return await self.order.create_order(params, metadata.get("data", {}), l2_price_decimal)
 
-    async def get_market_order_price(self, contract_id: str, side: str) -> Optional[str]:
+    async def get_market_order_price(self, contract_id: str, side: OrderSide) -> Optional[str]:
         """
         Get market order price for a given contract and side.
 

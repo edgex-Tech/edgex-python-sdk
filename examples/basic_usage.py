@@ -42,11 +42,14 @@ async def main():
         account_id=account_id,
         stark_private_key=stark_private_key
     )
+
+    # Get server time
+    server_time = await client.get_server_time()
+    print(f"Server Time: {server_time}")
+
     # Get exchange metadata first (required for transfer operations)
     metadata = await client.get_metadata()
-    if not metadata:
-        print("Failed to get metadata")
-        return
+    print(f"Available contracts: {len(metadata.get('data', {}).get('contractList', []))}")
 
     # Get account assets
     assets = await client.get_account_asset()
@@ -60,10 +63,6 @@ async def main():
     )
     klines = await client.quote.get_k_line(kline_params)
     print(f"K-lines: {klines}")
-
-    # Get exchange metadata
-    metadata = await client.get_metadata()
-    print(f"Available contracts: {len(metadata.get('data', {}).get('contractList', []))}")
 
     # Get account positions
     positions = await client.get_account_positions()
@@ -96,7 +95,7 @@ async def main():
         size="0.01",
         price="600.00",
         type=OrderType.LIMIT,
-        side=OrderSide.BUY.value
+        side=OrderSide.BUY,
     ))
     print(f"Order created: {order}")
 
@@ -106,7 +105,7 @@ async def main():
         size="0.01",
         price="0",
         type=OrderType.MARKET,
-        side=OrderSide.BUY.value
+        side=OrderSide.BUY
     ))
     print(f"Order created: {order}")
 

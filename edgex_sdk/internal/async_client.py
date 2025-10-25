@@ -196,9 +196,6 @@ class AsyncClient:
         
         sig = self.sign(content_hash)
 
-        print(f"sign_content: {sign_content}")
-        print(f"sign: {sig.r}{sig.s}")
-        
         # Prepare headers
         headers = {
             "X-edgeX-Api-Timestamp": str(timestamp),

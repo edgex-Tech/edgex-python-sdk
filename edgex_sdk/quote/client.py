@@ -228,8 +228,6 @@ class Client:
         if params.filter_end_kline_time_exclusive:
             query_params["filterEndKlineTimeExclusive"] = params.filter_end_kline_time_exclusive
 
-        print(query_params)
-
         # Public endpoint - use simple GET request
         await self.async_client._ensure_session()
 

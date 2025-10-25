@@ -99,7 +99,7 @@ class CreateOrderParams:
     price: str
     size: str
     type: OrderType
-    side: str
+    side: OrderSide
     client_order_id: Optional[str] = None
     expire_time: Optional[int] = None
     time_in_force: Optional[str] = None
