@@ -110,7 +110,7 @@ class CreateOrderParams:
 class CancelOrderParams:
     """Parameters for canceling orders."""
     order_id: str = ""  # Order ID to cancel
-    client_id: str = ""  # Client order ID to cancel
+    client_order_id: str = ""  # Client order ID to cancel
     contract_id: str = ""  # Contract ID for canceling all orders
 
 

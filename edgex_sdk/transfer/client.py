@@ -161,6 +161,9 @@ class Client:
             params=query_params
         )
 
+    async def get_transferout_available_amount(self, coin_id: str) -> Dict[str, Any]:
+        return await self.get_withdraw_available_amount(GetWithdrawAvailableAmountParams(coin_id=coin_id))
+
     async def get_withdraw_available_amount(self, params: GetWithdrawAvailableAmountParams) -> Dict[str, Any]:
         """
         Get the available withdrawal amount.

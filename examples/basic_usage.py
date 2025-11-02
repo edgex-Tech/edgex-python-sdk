@@ -26,15 +26,16 @@ from edgex_sdk import (
     TransferReason
 )
 from edgex_sdk.account.client import RegisterAccountParams
-from edgex_sdk.asset.client import CreateWithdrawalParams
-from edgex_sdk.order.types import CreateOrderParams, OrderType
+from edgex_sdk.asset.client import CreateWithdrawalParams, GetAssetOrdersParams
+from edgex_sdk.order.types import CancelOrderParams, CreateOrderParams, OrderType
+from edgex_sdk.transfer.client import GetWithdrawAvailableAmountParams
 
 
 async def main():
     # Load configuration from environment variables
     base_url = os.getenv("EDGEX_BASE_URL", "https://testnet.edgex.exchange")
-    account_id = int(os.getenv("EDGEX_ACCOUNT_ID", "your-account-id"))
-    stark_private_key = os.getenv("EDGEX_STARK_PRIVATE_KEY", "your-stark-private-key")
+    account_id = int(os.getenv("EDGEX_ACCOUNT_ID", "your_account_id"))
+    stark_private_key = os.getenv("EDGEX_STARK_PRIVATE_KEY", "your_private_key")
 
     # Create a new client
     client = Client(
@@ -89,6 +90,9 @@ async def main():
     depth = await client.quote.get_order_book_depth(depth_params)
     print(f"Order Book Depth: {depth}")
 
+    maxOrderSize = await client.get_max_order_size("10000001", 100000.0)
+    print(f"Max Order size: {maxOrderSize}")
+    
     # Create a limit order (commented out to avoid actual order creation)
     order = await client.create_order(CreateOrderParams(
         contract_id="10000004",  # BNBUSDT
@@ -109,8 +113,17 @@ async def main():
     ))
     print(f"Order created: {order}")
 
+    param = CancelOrderParams(
+        client_order_id ="676249092405330305"
+    )
+    cancelRes = await client.cancel_order(param)
+    print(f"Cancel Order: {cancelRes}")
+
     # Create a transfer out order with new optional parameters
     try:
+        transferMaxAmount = await client.transfer.get_transferout_available_amount("1000")
+        print(transferMaxAmount)
+
         # Set expiration time to 24 hours from now
         expire_time = datetime.now() + timedelta(hours=24)
 
@@ -126,6 +139,15 @@ async def main():
                 extra_data_json='{"custom_field": "custom_value"}'
             ))
         print(f"Transfer out result: {transfer_result}")
+
+        transferOrders = await client.asset.get_asset_orders(
+            GetAssetOrdersParams(
+                size=10,
+                filter_start_created_time_inclusive=1761408000,
+                filter_end_created_time_exclusive=1762099199
+            )
+        )
+        print(f"Tranfer orders: {transferOrders}")
     except ValueError as e:
         print(f"Failed to create transfer out: {e}")
     except Exception as e:
@@ -139,6 +161,9 @@ async def main():
         tag=""
     ))
     print(f"WithdrawResult: {withdrawResult}")
+
+    maxWithdrawalAmount = await client.asset.get_withdrawable_amount(address="your_eth_address")
+    print(f"Max withdrawal amount: {maxWithdrawalAmount}")
 
     # Get withdrawal records with default parameters
     withdrawal_params = GetWithdrawalRecordsParams(size="10")

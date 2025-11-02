@@ -192,11 +192,11 @@ class Client:
                 "accountId": account_id,
                 "orderIdList": [params.order_id]
             }
-        elif params.client_id:
+        elif params.client_order_id:
             path = "/api/v1/private/order/cancelOrderByClientOrderId"
             request_data = {
                 "accountId": account_id,
-                "clientOrderIdList": [params.client_id]
+                "clientOrderIdList": [params.client_order_id]
             }
         elif params.contract_id:
             path = "/api/v1/private/order/cancelAllOrder"

@@ -267,6 +267,7 @@ class Client:
             ValueError: If the request fails
         """
         query_params = {
+            "accountId": str(self.async_client.get_account_id()),
             "address": address
         }
 
