@@ -39,7 +39,7 @@ class Client:
         # Create async client
         self.async_client = AsyncClient(
             base_url=base_url,
-            account_id=account_id,
+            account_id=int(account_id),
             stark_pri_key=stark_private_key,
             signing_adapter=signing_adapter,
             timeout=timeout
