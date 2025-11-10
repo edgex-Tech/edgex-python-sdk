@@ -12,6 +12,7 @@ This example demonstrates the basic functionality of the SDK:
 
 import asyncio
 import os
+from datetime import datetime, timedelta
 
 from edgex_sdk import (
     Client,
@@ -19,15 +20,22 @@ from edgex_sdk import (
     GetKLineParams,
     GetOrderBookDepthParams,
     KlineType,
-    WebSocketManager
+    WebSocketManager,
+    GetWithdrawalRecordsParams,
+    CreateTransferOutParams,
+    TransferReason
 )
+from edgex_sdk.account.client import RegisterAccountParams
+from edgex_sdk.asset.client import CreateWithdrawalParams, GetAssetOrdersParams
+from edgex_sdk.order.types import CancelOrderParams, CreateOrderParams, OrderType
+from edgex_sdk.transfer.client import GetWithdrawAvailableAmountParams
 
 
 async def main():
     # Load configuration from environment variables
     base_url = os.getenv("EDGEX_BASE_URL", "https://testnet.edgex.exchange")
-    account_id = int(os.getenv("EDGEX_ACCOUNT_ID", "12345"))
-    stark_private_key = os.getenv("EDGEX_STARK_PRIVATE_KEY", "your-stark-private-key")
+    account_id = int(os.getenv("EDGEX_ACCOUNT_ID", "your_account_id"))
+    stark_private_key = os.getenv("EDGEX_STARK_PRIVATE_KEY", "your_private_key")
 
     # Create a new client
     client = Client(
@@ -40,13 +48,22 @@ async def main():
     server_time = await client.get_server_time()
     print(f"Server Time: {server_time}")
 
-    # Get exchange metadata
+    # Get exchange metadata first (required for transfer operations)
     metadata = await client.get_metadata()
     print(f"Available contracts: {len(metadata.get('data', {}).get('contractList', []))}")
 
     # Get account assets
     assets = await client.get_account_asset()
     print(f"Account Assets: {assets}")
+
+    # Get K-line data for BTCUSDT (contract ID: 10000001)
+    kline_params = GetKLineParams(
+        contract_id="10000001",  # BTCUSDT
+        kline_type=KlineType.MINUTE_1,
+        size=10
+    )
+    klines = await client.quote.get_k_line(kline_params)
+    print(f"K-lines: {klines}")
 
     # Get account positions
     positions = await client.get_account_positions()
@@ -73,14 +90,86 @@ async def main():
     depth = await client.quote.get_order_book_depth(depth_params)
     print(f"Order Book Depth: {depth}")
 
+    maxOrderSize = await client.get_max_order_size("10000001", 100000.0)
+    print(f"Max Order size: {maxOrderSize}")
+    
     # Create a limit order (commented out to avoid actual order creation)
-    # order = await client.create_limit_order(
-    #     contract_id="10000004",  # BNBUSDT
-    #     size="0.01",
-    #     price="600.00",
-    #     side=OrderSide.BUY
-    # )
-    # print(f"Order created: {order}")
+    order = await client.create_order(CreateOrderParams(
+        contract_id="10000004",  # BNBUSDT
+        size="0.01",
+        price="600.00",
+        type=OrderType.LIMIT,
+        side=OrderSide.BUY,
+    ))
+    print(f"Order created: {order}")
+
+    # Create a market order 
+    order = await client.create_order(CreateOrderParams(
+        contract_id="10000004",  # BNBUSDT
+        size="0.01",
+        price="0",
+        type=OrderType.MARKET,
+        side=OrderSide.BUY
+    ))
+    print(f"Order created: {order}")
+
+    param = CancelOrderParams(
+        client_order_id ="676249092405330305"
+    )
+    cancelRes = await client.cancel_order(param)
+    print(f"Cancel Order: {cancelRes}")
+
+    # Create a transfer out order with new optional parameters
+    try:
+        transferMaxAmount = await client.transfer.get_transferout_available_amount("1000")
+        print(transferMaxAmount)
+
+        # Set expiration time to 24 hours from now
+        expire_time = datetime.now() + timedelta(hours=24)
+
+        transfer_result = await client.create_transfer_out(
+            CreateTransferOutParams(
+                coin_id="1000",
+                amount="10",
+                receiver_account_id="your-receiver-account-id",
+                receiver_l2_key="your-receiver-l2-key", # "0x111111"
+                transfer_reason=TransferReason.USER_TRANSFER,
+                expire_time=expire_time,
+                extra_type="CUSTOM_TYPE",
+                extra_data_json='{"custom_field": "custom_value"}'
+            ))
+        print(f"Transfer out result: {transfer_result}")
+
+        transferOrders = await client.asset.get_asset_orders(
+            GetAssetOrdersParams(
+                size=10,
+                filter_start_created_time_inclusive=1761408000,
+                filter_end_created_time_exclusive=1762099199
+            )
+        )
+        print(f"Tranfer orders: {transferOrders}")
+    except ValueError as e:
+        print(f"Failed to create transfer out: {e}")
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+
+    # Create a withdrawal order
+    withdrawResult = await client.create_normal_withdrawal(CreateWithdrawalParams(
+        coin_id="1000",
+        amount="10",
+        eth_address="your-eth-address", # "0x111111"
+        tag=""
+    ))
+    print(f"WithdrawResult: {withdrawResult}")
+
+    maxWithdrawalAmount = await client.asset.get_withdrawable_amount(address="your_eth_address")
+    print(f"Max withdrawal amount: {maxWithdrawalAmount}")
+
+    # Get withdrawal records with default parameters
+    withdrawal_params = GetWithdrawalRecordsParams(size="10")
+    withdrawResult = await client.asset.get_withdrawal_records(withdrawal_params)
+    print(f"withdrawResult: {withdrawResult}")
+
 
     # WebSocket example
     ws_url = os.getenv("EDGEX_WS_URL", "wss://quote-testnet.edgex.exchange")
@@ -109,7 +198,6 @@ async def main():
 
     # Disconnect all connections
     ws_manager.disconnect_all()
-
 
 if __name__ == "__main__":
     asyncio.run(main())

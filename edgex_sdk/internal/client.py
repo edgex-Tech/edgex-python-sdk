@@ -1,6 +1,7 @@
 import binascii
 import hashlib
 import time
+import random
 import uuid
 from typing import Dict, Any, Optional, Tuple, List, Union
 
@@ -18,6 +19,8 @@ except ImportError:
 
 # Constants
 LIMIT_ORDER_WITH_FEE_TYPE = 3
+WITHDRAWAL_TYPE = 5
+WITHDRAWAL_TO_ADDRESS_TYPE = 6
 
 
 class L2Signature:
@@ -262,6 +265,58 @@ class Client:
 
         # Final hash: hash(msg, packed_msg1)
         msg = self.signing_adapter.pedersen_hash([msg_int, packed_msg1])
+
+        return msg
+
+    def calc_withdrawal_to_address_hash(
+        self,
+        asset_id_collateral: str,
+        position_id: str,
+        eth_address: str,
+        nonce: str,
+        expiration_timestamp: str,
+        amount: str
+    ) -> bytes:
+        """
+        Calculate the hash for a withdrawal to address using StarkEx protocol.
+
+        Args:
+            asset_id_collateral: The collateral asset ID (hex string)
+            position_id: The position ID (string)
+            eth_address: The Ethereum address (hex string)
+            nonce: The nonce (string)
+            expiration_timestamp: The expiration timestamp (string)
+            amount: The withdrawal amount (string)
+
+        Returns:
+            bytes: The calculated hash
+
+        Raises:
+            ValueError: If the calculation fails
+        """
+        # Convert hex string to integer for asset ID
+        w1 = int(asset_id_collateral, 16) if asset_id_collateral.startswith('0x') else int(asset_id_collateral, 16)
+
+        # Convert eth address to integer
+        eth_addr_int = int(eth_address, 16) if eth_address.startswith('0x') else int(eth_address, 16)
+
+        # Pack message according to Go implementation:
+        # w5 = WITHDRAWAL_TO_ADDRESS_TYPE * 2^64 + position_id * 2^32 + nonce * 2^64 + amount * 2^32 + expiration_timestamp * 2^49
+        w5 = WITHDRAWAL_TO_ADDRESS_TYPE
+        w5 = (w5 << 64) + int(position_id)
+        w5 = (w5 << 32) + int(nonce)
+        w5 = (w5 << 64) + int(amount)
+        w5 = (w5 << 32) + int(expiration_timestamp)
+        w5 = w5 << 49  # Padding
+        w5 = w5 % FIELD_PRIME  # Ensure within field
+
+        # Calculate nested Pedersen hash: Pedersen([Pedersen([w1, eth_address]), w5])
+        # First hash w1 and eth_address
+        first_hash = self.signing_adapter.pedersen_hash([w1, eth_addr_int])
+        first_hash_int = int.from_bytes(first_hash, byteorder='big')
+
+        # Then hash the result with w5
+        msg = self.signing_adapter.pedersen_hash([first_hash_int, w5])
 
         return msg
 

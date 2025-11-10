@@ -12,8 +12,9 @@ from .funding.client import Client as FundingClient
 from .metadata.client import Client as MetadataClient
 from .order.client import Client as OrderClient
 from .quote.client import Client as QuoteClient
-from .transfer.client import Client as TransferClient
-from .order.types import CreateOrderParams, CancelOrderParams, GetActiveOrderParams, OrderFillTransactionParams
+from .transfer.client import Client as TransferClient, CreateTransferOutParams
+from .order.types import CreateOrderParams, CancelOrderParams, GetActiveOrderParams, OrderFillTransactionParams, OrderType, OrderSide
+from .asset.client import CreateWithdrawalParams
 
 
 class Client:
@@ -79,6 +80,22 @@ class Client:
         """Get the current server time."""
         return await self.metadata.get_server_time()
 
+    async def create_transfer_out(self, params: CreateTransferOutParams) -> Dict[str, Any]:
+        """Create a transfer out order."""
+        metadata = await self.get_metadata()
+        if not metadata:
+            raise ValueError("failed to get metadata")
+
+        return await self.transfer.create_transfer_out(params, metadata.get("data", {}))
+
+    async def create_normal_withdrawal(self, params: CreateWithdrawalParams) -> Dict[str, Any]:
+        """Create a normal withdrawal."""
+        metadata = await self.get_metadata()
+        if not metadata:
+            raise ValueError("failed to get metadata")
+
+        return await self.asset.create_withdrawal(params, metadata.get("data", {}))
+
     async def create_order(self, params: CreateOrderParams) -> Dict[str, Any]:
         """
         Create a new order with the given parameters.
@@ -94,7 +111,72 @@ class Client:
         if not metadata:
             raise ValueError("failed to get metadata")
 
-        return await self.order.create_order(params, metadata.get("data", {}))
+        # Calculate l2_price based on order type (following Golang implementation)
+        l2_price = params.price
+        if params.type == OrderType.MARKET:
+            # Get market order price for market orders
+            price = await self.get_market_order_price(params.contract_id, params.side)
+            if price is None:
+                raise ValueError("failed to get market order price")
+            l2_price = price
+            params.price = "0"  # Set price to 0 for market orders
+
+        # Convert l2_price string to decimal.Decimal
+        try:
+            from decimal import InvalidOperation
+            l2_price_decimal = Decimal(l2_price)
+        except (ValueError, TypeError, InvalidOperation) as e:
+            raise ValueError(f"invalid price format: {e}")
+
+        return await self.order.create_order(params, metadata.get("data", {}), l2_price_decimal)
+
+    async def get_market_order_price(self, contract_id: str, side: OrderSide) -> Optional[str]:
+        """
+        Get market order price for a given contract and side.
+
+        Args:
+            contract_id: The contract ID
+            side: The order side (BUY or SELL)
+
+        Returns:
+            Optional[str]: The calculated market price, or None if failed
+
+        Raises:
+            ValueError: If metadata or contract not found
+        """
+        # Get metadata for contract info
+        metadata = await self.get_metadata()
+        if not metadata:
+            raise ValueError("failed to get metadata")
+
+        # Find the contract
+        contract = None
+        contract_list = metadata.get("data", {}).get("contractList", [])
+        for c in contract_list:
+            if c.get("contractId") == contract_id:
+                contract = c
+                break
+
+        if not contract:
+            raise ValueError(f"contract not found: {contract_id}")
+
+        # Calculate price based on side
+        if side == OrderSide.BUY:
+            # For buy orders: oracle_price * 10, rounded to price precision
+            quote = await self.get_24_hour_quote(contract_id)
+            if not quote:
+                return None
+
+            oracle_price = Decimal(quote.get("data", [])[0].get("oraclePrice", "0"))
+            multiplier = Decimal("10")
+            tick_size = Decimal(contract.get("tickSize", "0"))
+            precision = abs(tick_size.as_tuple().exponent)
+            price = str(round(oracle_price * multiplier, precision))
+        else:
+            # For sell orders: use tick size
+            price = contract.get("tickSize", "0")
+
+        return price
 
     async def get_max_order_size(self, contract_id: str, price: Decimal) -> Dict[str, Any]:
         """
@@ -152,104 +234,6 @@ class Client:
     async def get_account_positions(self) -> Dict[str, Any]:
         """Get the account positions."""
         return await self.account.get_account_positions()
-
-    async def create_limit_order(
-        self,
-        contract_id: str,
-        size: str,
-        price: str,
-        side: str,
-        client_order_id: Optional[str] = None
-    ) -> Dict[str, Any]:
-        """
-        Create a new limit order with the given parameters.
-
-        Args:
-            contract_id: The contract ID
-            size: The order size
-            price: The order price
-            side: The order side (BUY or SELL)
-            client_order_id: Optional client order ID
-
-        Returns:
-            Dict[str, Any]: The created order
-        """
-        from .order.types import OrderType
-
-        params = CreateOrderParams(
-            contract_id=contract_id,
-            size=size,
-            price=price,
-            side=side,
-            type=OrderType.LIMIT,
-            client_order_id=client_order_id
-        )
-
-        return await self.create_order(params)
-
-    async def create_market_order(
-        self,
-        contract_id: str,
-        size: str,
-        side: str,
-        client_order_id: Optional[str] = None
-    ) -> Dict[str, Any]:
-        """
-        Create a new market order with the given parameters.
-
-        Args:
-            contract_id: The contract ID
-            size: The order size
-            side: The order side (BUY or SELL)
-            client_order_id: Optional client order ID
-
-        Returns:
-            Dict[str, Any]: The created order
-        """
-        # Get metadata for contract info
-        metadata = await self.get_metadata()
-        if not metadata:
-            raise ValueError("failed to get metadata")
-
-        # Find the contract
-        contract = None
-        contract_list = metadata.get("data", {}).get("contractList", [])
-        for c in contract_list:
-            if c.get("contractId") == contract_id:
-                contract = c
-                break
-
-        if not contract:
-            raise ValueError(f"contract not found: {contract_id}")
-
-        # Calculate price based on side
-        from .order.types import OrderSide, OrderType
-
-        if side == OrderSide.BUY:
-            # For buy orders: oracle_price * 10, rounded to price precision
-            quote = await self.get_24_hour_quote(contract_id)
-            if not quote:
-                raise ValueError("failed to get 24-hour quotes")
-
-            oracle_price = Decimal(quote.get("data", [])[0].get("oraclePrice", "0"))
-            multiplier = Decimal("10")
-            tick_size = Decimal(contract.get("tickSize", "0"))
-            precision = abs(tick_size.as_tuple().exponent)
-            price = str(round(oracle_price * multiplier, precision))
-        else:
-            # For sell orders: use tick size
-            price = contract.get("tickSize", "0")
-
-        params = CreateOrderParams(
-            contract_id=contract_id,
-            size=size,
-            price=price,
-            side=side,
-            type=OrderType.MARKET,
-            client_order_id=client_order_id
-        )
-
-        return await self.create_order(params)
 
     async def get_24_hour_quote(self, contract_id: str) -> Dict[str, Any]:
         """

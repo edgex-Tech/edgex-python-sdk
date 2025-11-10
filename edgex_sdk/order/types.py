@@ -99,9 +99,9 @@ class CreateOrderParams:
     price: str
     size: str
     type: OrderType
-    side: str
+    side: OrderSide
     client_order_id: Optional[str] = None
-    l2_expire_time: Optional[int] = None
+    expire_time: Optional[int] = None
     time_in_force: Optional[str] = None
     reduce_only: bool = False
 
@@ -110,7 +110,7 @@ class CreateOrderParams:
 class CancelOrderParams:
     """Parameters for canceling orders."""
     order_id: str = ""  # Order ID to cancel
-    client_id: str = ""  # Client order ID to cancel
+    client_order_id: str = ""  # Client order ID to cancel
     contract_id: str = ""  # Contract ID for canceling all orders
 
 

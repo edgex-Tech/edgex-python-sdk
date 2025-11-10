@@ -33,7 +33,8 @@ from .transfer.client import (
     GetWithdrawAvailableAmountParams,
     CreateTransferOutParams,
     GetTransferOutPageParams,
-    GetTransferInPageParams
+    GetTransferInPageParams,
+    TransferReason
 )
 from .asset.client import (
     GetAssetOrdersParams,
@@ -42,7 +43,7 @@ from .asset.client import (
 )
 from .ws.manager import Manager as WebSocketManager
 
-__version__ = "0.3.0"
+__version__ = "0.3.1"
 __all__ = [
     "Client",
     "OrderType",
@@ -67,6 +68,7 @@ __all__ = [
     "CreateTransferOutParams",
     "GetTransferOutPageParams",
     "GetTransferInPageParams",
+    "TransferReason",
     "GetAssetOrdersParams",
     "CreateWithdrawalParams",
     "GetWithdrawalRecordsParams",

@@ -1,7 +1,6 @@
-import math
 import time
 from decimal import Decimal
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, List
 
 from ..internal.async_client import AsyncClient
 from .types import (
@@ -10,7 +9,8 @@ from .types import (
     GetActiveOrderParams,
     OrderFillTransactionParams,
     TimeInForce,
-    OrderType
+    OrderType,
+    OrderSide
 )
 
 
@@ -26,7 +26,7 @@ class Client:
         """
         self.async_client = async_client
 
-    async def create_order(self, params: CreateOrderParams, metadata: Dict[str, Any]) -> Dict[str, Any]:
+    async def create_order(self, params: CreateOrderParams, metadata: Dict[str, Any], l2_price: Decimal) -> Dict[str, Any]:
         """
         Create a new order with the given parameters.
 
@@ -40,128 +40,136 @@ class Client:
         Raises:
             ValueError: If required parameters are missing or invalid
         """
-        # Set default TimeInForce based on order type if not specified
         if not params.time_in_force:
             if params.type == OrderType.MARKET:
-                params.time_in_force = TimeInForce.IMMEDIATE_OR_CANCEL
+                params.time_in_force = TimeInForce.IMMEDIATE_OR_CANCEL.value
             elif params.type == OrderType.LIMIT:
-                params.time_in_force = TimeInForce.GOOD_TIL_CANCEL
+                params.time_in_force = TimeInForce.GOOD_TIL_CANCEL.value
 
-        # Find the contract from metadata
         contract = None
-        contract_list = metadata.get("contractList", [])
-        for c in contract_list:
-            if c.get("contractId") == params.contract_id:
-                contract = c
-                break
+        contract_list = metadata.get("contractList")
+        if contract_list is not None:
+            for c in contract_list:
+                if c.get("contractId") == params.contract_id:
+                    contract = c
+                    break
 
-        if not contract:
+        if contract is None:
             raise ValueError(f"contract not found: {params.contract_id}")
 
-        # Get collateral coin from metadata
-        global_data = metadata.get("global", {})
-        collateral_coin = global_data.get("starkExCollateralCoin", {})
+        quote_coin = None
+        coin_list = metadata.get("coinList")
+        if coin_list is not None:
+            quote_coin_id = contract.get("quoteCoinId")
+            for coin in coin_list:
+                if coin.get("coinId") == quote_coin_id:
+                    quote_coin = coin
+                    break
 
-        # Parse decimal values
+        if quote_coin is None:
+            raise ValueError(f"coin not found: {contract.get('quoteCoinId')}")
+
+        print(f"contract: {contract}")
+
+        try:
+            synthetic_factor_big = self.async_client.hex_to_big_integer(contract.get("starkExResolution", "0x0"))
+            synthetic_factor = Decimal(synthetic_factor_big)
+        except (ValueError, TypeError) as e:
+            raise ValueError(f"failed to parse synthetic factor: {e}")
+
+        try:
+            shift_factor_big = self.async_client.hex_to_big_integer(quote_coin.get("starkExResolution", "0x0"))
+            shift_factor = Decimal(shift_factor_big)
+        except (ValueError, TypeError) as e:
+            raise ValueError(f"failed to parse shift factor: {e}")
+
         try:
             size = Decimal(params.size)
-            price = Decimal(params.price)
-        except (ValueError, TypeError):
-            raise ValueError("failed to parse size or price")
+        except (ValueError, TypeError) as e:
+            raise ValueError(f"failed to parse size: {e}")
 
-        # Convert hex resolution to decimal
-        hex_resolution = contract.get("starkExResolution", "0x0")
-        # Remove "0x" prefix if present
-        hex_resolution = hex_resolution.replace("0x", "")
-        # Parse hex string to int
-        try:
-            resolution_int = int(hex_resolution, 16)
-            resolution = Decimal(resolution_int)
-        except (ValueError, TypeError):
-            raise ValueError("failed to parse hex resolution")
+        value_dm = l2_price * size
 
-        client_order_id = params.client_order_id or self.async_client.generate_uuid()
+        amount_synthetic = int(size * synthetic_factor)
+        amount_collateral = int(value_dm * shift_factor)
 
-        # Calculate values
-        value_dm = price * size
-        amount_synthetic = int(size * resolution)
-        amount_collateral = int(value_dm * Decimal("1000000"))  # Shift 6 decimal places
+        fee_rate = Decimal("0.00038")  # Default fee rate
+        default_taker_fee_rate = contract.get("defaultTakerFeeRate")
+        if default_taker_fee_rate:
+            try:
+                fee_rate = Decimal(default_taker_fee_rate)
+            except (ValueError, TypeError) as e:
+                raise ValueError(f"failed to parse fee rate: {e}")
 
-        # Calculate fee based on order type (maker/taker)
-        try:
-            fee_rate = Decimal(contract.get("defaultTakerFeeRate", "0"))
-        except (ValueError, TypeError):
-            raise ValueError("failed to parse fee rate")
+        limit_fee = (size * l2_price * fee_rate).quantize(Decimal('1'), rounding='ROUND_CEILING')
+        max_amount_fee = limit_fee * shift_factor
 
-        # Calculate fee amount in decimal with ceiling to integer
-        amount_fee_dm = Decimal(str(math.ceil(float(value_dm * fee_rate))))
-        amount_fee_str = str(amount_fee_dm)
-
-        # Convert to the required integer format for the protocol
-        amount_fee = int(amount_fee_dm * Decimal("1000000"))  # Shift 6 decimal places
+        client_order_id = params.client_order_id or self.async_client.get_random_client_id()
 
         nonce = self.async_client.calc_nonce(client_order_id)
-        l2_expire_time = int(time.time() * 1000) + (14 * 24 * 60 * 60 * 1000)  # 14 days
 
-        # Calculate signature using asset IDs from metadata
-        expire_time_unix = l2_expire_time // (60 * 60 * 1000)
+        expire_time = int(time.time() * 1000) + (24 * 60 * 60 * 1000)  
+        if params.expire_time:
+            expire_time = params.l2_expire_time
+        l2_expire_time = expire_time + (9 * 24 * 60 * 60 * 1000)  
 
-        sig_hash = self.async_client.calc_limit_order_hash(
+        l2_expire_hour = l2_expire_time // (60 * 60 * 1000)
+
+        msg_hash = self.async_client.calc_limit_order_hash(
             contract.get("starkExSyntheticAssetId", ""),
-            collateral_coin.get("starkExAssetId", ""),
-            collateral_coin.get("starkExAssetId", ""),
-            params.side.value == "BUY",
+            quote_coin.get("starkExAssetId", ""),
+            quote_coin.get("starkExAssetId", ""),
+            params.side == OrderSide.BUY,
             amount_synthetic,
             amount_collateral,
-            amount_fee,
+            int(max_amount_fee),
             nonce,
             self.async_client.get_account_id(),
-            expire_time_unix
+            l2_expire_hour
         )
 
-        # Sign the order
-        sig = self.async_client.sign(sig_hash)
+        try:
+            signature = self.async_client.sign(msg_hash)
+        except Exception as e:
+            raise ValueError(f"failed to sign withdrawal hash: {e}")
 
-        # Convert signature to string (include v component like Go SDK, even though it's empty)
-        sig_str = f"{sig.r}{sig.s}{sig.v if hasattr(sig, 'v') and sig.v else ''}"
+        sig_str = f"{signature.r}{signature.s}"
+        print(f"sig_str: {sig_str}")
 
-
-
-        # Create order request
-        account_id = str(self.async_client.get_account_id())
-        nonce_str = str(nonce)
-        l2_expire_time_str = str(l2_expire_time)
-        expire_time_str = str(l2_expire_time - 864000000)  # 10 days earlier
-        value_str = str(value_dm)
-
-        price_str = params.price if params.type == OrderType.LIMIT else "0"
-
-        # Prepare request data
-        request_data = {
-            "accountId": account_id,
+        body = {
+            "accountId": str(self.async_client.get_account_id()),
             "contractId": params.contract_id,
-            "price": price_str,
+            "price": params.price,
             "size": params.size,
-            "type": params.type.value,  # Use .value to get the string value
-            "timeInForce": params.time_in_force.value,  # Use .value to get the string value
-            "side": params.side.value,  # Use .value to get the string value
-            "l2Signature": sig_str,
-            "l2Nonce": nonce_str,
-            "l2ExpireTime": l2_expire_time_str,
-            "l2Value": value_str,
-            "l2Size": params.size,
-            "l2LimitFee": amount_fee_str,
+            "type": params.type.value,
+            "side": params.side.value,
+            "timeInForce": params.time_in_force,
             "clientOrderId": client_order_id,
-            "expireTime": expire_time_str,
+            "expireTime": str(expire_time),
+            "l2Nonce": str(nonce),
+            "l2Signature": sig_str,
+            "l2ExpireTime": str(l2_expire_time),
+            "l2Value": str(value_dm),
+            "l2Size": params.size,
+            "l2LimitFee": str(limit_fee),
             "reduceOnly": params.reduce_only
         }
 
-        # Execute request using async client
-        return await self.async_client.make_authenticated_request(
-            method="POST",
-            path="/api/v1/private/order/createOrder",
-            data=request_data
-        )
+        try:
+            result = await self.async_client.make_authenticated_request(
+                method="POST",
+                path="/api/v1/private/order/createOrder",
+                data=body
+            )
+
+            # Check if the request was successful
+            if result.get("code") != "SUCCESS":
+                raise ValueError(f"request failed with code: {result.get('code')}")
+
+            return result
+
+        except Exception as e:
+            raise ValueError(f"failed to create order: {e}")
 
     async def cancel_order(self, params: CancelOrderParams) -> Dict[str, Any]:
         """
@@ -184,11 +192,11 @@ class Client:
                 "accountId": account_id,
                 "orderIdList": [params.order_id]
             }
-        elif params.client_id:
+        elif params.client_order_id:
             path = "/api/v1/private/order/cancelOrderByClientOrderId"
             request_data = {
                 "accountId": account_id,
-                "clientOrderIdList": [params.client_id]
+                "clientOrderIdList": [params.client_order_id]
             }
         elif params.contract_id:
             path = "/api/v1/private/order/cancelAllOrder"

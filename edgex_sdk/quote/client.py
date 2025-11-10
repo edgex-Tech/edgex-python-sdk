@@ -33,12 +33,6 @@ class PriceType(Enum):
     OPEN_INTEREST = 6
 
 
-
-
-
-
-
-
 class GetKLineParams:
     """Parameters for getting K-line data."""
 
