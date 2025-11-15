@@ -7,6 +7,7 @@ from .types import (
     CreateOrderParams,
     CancelOrderParams,
     GetActiveOrderParams,
+    GetHistoryOrderParams,
     OrderFillTransactionParams,
     TimeInForce,
     OrderType,
@@ -269,6 +270,61 @@ class Client:
             params=query_params
         )
 
+    async def get_history_orders(self, params: GetHistoryOrderParams) -> Dict[str, Any]:
+        """
+        Get historical orders with pagination and filters.
+
+        Args:
+            params: History order query parameters
+
+        Returns:
+            Dict[str, Any]: The historical orders
+
+        Raises:
+            ValueError: If the request fails
+        """
+        # Build query parameters
+        query_params = {
+            "accountId": str(self.async_client.get_account_id())
+        }
+
+        # Add pagination parameters
+        if params.size:
+            query_params["size"] = params.size
+        if params.offset_data:
+            query_params["offsetData"] = params.offset_data
+
+        # Add filter parameters
+        if params.filter_coin_id_list:
+            query_params["filterCoinIdList"] = ",".join(params.filter_coin_id_list)
+        if params.filter_contract_id_list:
+            query_params["filterContractIdList"] = ",".join(params.filter_contract_id_list)
+        if params.filter_type_list:
+            query_params["filterTypeList"] = ",".join(params.filter_type_list)
+        if params.filter_status_list:
+            query_params["filterStatusList"] = ",".join(params.filter_status_list)
+
+        # Add boolean filters
+        if params.filter_is_liquidate is not None:
+            query_params["filterIsLiquidateList"] = str(params.filter_is_liquidate).lower()
+        if params.filter_is_deleverage is not None:
+            query_params["filterIsDeleverageList"] = str(params.filter_is_deleverage).lower()
+        if params.filter_is_position_tpsl is not None:
+            query_params["filterIsPositionTpslList"] = str(params.filter_is_position_tpsl).lower()
+
+        # Add time filters
+        if params.filter_start_created_time_inclusive > 0:
+            query_params["filterStartCreatedTimeInclusive"] = str(params.filter_start_created_time_inclusive)
+        if params.filter_end_created_time_exclusive > 0:
+            query_params["filterEndCreatedTimeExclusive"] = str(params.filter_end_created_time_exclusive)
+
+        # Execute request using async client
+        return await self.async_client.make_authenticated_request(
+            method="GET",
+            path="/api/v1/private/order/getHistoryOrderPage",
+            params=query_params
+        )
+
     async def get_order_fill_transactions(self, params: OrderFillTransactionParams) -> Dict[str, Any]:
         """
         Get order fill transactions with pagination and filters.
@@ -320,6 +376,60 @@ class Client:
             method="GET",
             path="/api/v1/private/order/getHistoryOrderFillTransactionPage",
             params=query_params
+        )
+
+    async def get_orders_by_ids(self, order_id_list: List[str]) -> Dict[str, Any]:
+        """
+        Get orders by account ID and order IDs (batch).
+
+        Args:
+            order_id_list: List of order IDs to fetch
+
+        Returns:
+            Dict[str, Any]: Orders matching the provided IDs
+
+        Raises:
+            ValueError: If input is invalid or request fails
+        """
+        if not order_id_list:
+            raise ValueError("order_id_list must not be empty")
+
+        query_params = {
+            "accountId": str(self.async_client.get_account_id()),
+            "orderIdList": ",".join(order_id_list),
+        }
+
+        return await self.async_client.make_authenticated_request(
+            method="GET",
+            path="/api/v1/private/order/getOrderById",
+            params=query_params,
+        )
+
+    async def get_orders_by_client_order_ids(self, client_order_id_list: List[str]) -> Dict[str, Any]:
+        """
+        Get orders by client order IDs (batch).
+
+        Args:
+            client_order_id_list: List of client order IDs to fetch
+
+        Returns:
+            Dict[str, Any]: Orders matching the provided client order IDs
+
+        Raises:
+            ValueError: If input is invalid or request fails
+        """
+        if not client_order_id_list:
+            raise ValueError("client_order_id_list must not be empty")
+
+        query_params = {
+            "accountId": str(self.async_client.get_account_id()),
+            "clientOrderIdList": ",".join(client_order_id_list),
+        }
+
+        return await self.async_client.make_authenticated_request(
+            method="GET",
+            path="/api/v1/private/order/getOrderByClientOrderId",
+            params=query_params,
         )
 
     async def get_max_order_size(self, contract_id: str, price: float) -> Dict[str, Any]:

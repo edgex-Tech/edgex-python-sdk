@@ -54,6 +54,8 @@ class Client:
         self.transfer = TransferClient(self.async_client)
         self.asset = AssetClient(self.async_client)
 
+        self._cached_metadata: Dict[str, Any] | None = None
+
     async def __aenter__(self):
         """Async context manager entry."""
         await self.async_client._ensure_session()
@@ -74,7 +76,9 @@ class Client:
 
     async def get_metadata(self) -> Dict[str, Any]:
         """Get the exchange metadata."""
-        return await self.metadata.get_metadata()
+        if self._cached_metadata is None:
+            self._cached_metadata = await self.metadata.get_metadata()
+        return self._cached_metadata
 
     async def get_server_time(self) -> Dict[str, Any]:
         """Get the current server time."""

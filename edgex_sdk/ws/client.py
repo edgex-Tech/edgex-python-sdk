@@ -167,6 +167,20 @@ class Client:
                         self.handlers[channel_type](message)
                     continue
 
+                if msg.get("type") == "trade-event":
+                    account_handler = self.handlers.get("account")
+                    if account_handler is not None:
+                        account_handler(message)
+
+                    order_handler = self.handlers.get("order")
+                    if order_handler is not None:
+                        order_handler(message)
+
+                    position_handler = self.handlers.get("position")
+                    if position_handler is not None:
+                        position_handler(message)
+
+
                 # Call registered handlers for other message types
                 msg_type = msg.get("type", "")
                 if msg_type in self.handlers:
