@@ -223,10 +223,20 @@ class AsyncClient:
                 
                 # Check response code
                 if resp_data.get("code") != "SUCCESS":
+                    code = resp_data.get("code")
+                    msg = resp_data.get("msg") or resp_data.get("message")
                     error_param = resp_data.get("errorParam")
+
+                    detail_parts = []
+                    if msg:
+                        detail_parts.append(msg)
+                    if code:
+                        detail_parts.append(f"code: {code}")
                     if error_param:
-                        raise ValueError(f"request failed with error params: {error_param}")
-                    raise ValueError(f"request failed with code: {resp_data.get('code')}")
+                        detail_parts.append(f"errorParam: {error_param}")
+
+                    detail = ", ".join(detail_parts) if detail_parts else "unknown error"
+                    raise ValueError(f"request failed: {detail}")
                 
                 return resp_data
                 
