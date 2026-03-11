@@ -1,319 +1,136 @@
+import time
+from decimal import Decimal
 from typing import Dict, Any, List
 
-import time
 from ..internal.async_client import AsyncClient
+from ..internal.eip712 import (
+    EIP712_DOMAIN_TYPE,
+    WITHDRAWAL_PARAMS_TYPE,
+    build_eip712_domain,
+)
 
 
 class GetAssetOrdersParams:
-    """Parameters for getting asset orders."""
-
-    def __init__(self, size: str = "10", offset_data: str = "", filter_coin_id_list: List[str] = None,
-                 filter_start_created_time_inclusive: int = 0, filter_end_created_time_exclusive: int = 0):
+    def __init__(self, size: str = "10", offset_data: str = "", chain_id: str = "",
+                 type_list: List[str] = None, start_time: int = 0, end_time: int = 0):
         self.size = size
         self.offset_data = offset_data
-        self.filter_coin_id_list = filter_coin_id_list or []
-        self.filter_start_created_time_inclusive = filter_start_created_time_inclusive
-        self.filter_end_created_time_exclusive = filter_end_created_time_exclusive
+        self.chain_id = chain_id
+        self.type_list = type_list or []
+        self.start_time = start_time
+        self.end_time = end_time
 
 
 class CreateWithdrawalParams:
-    """Parameters for creating a withdrawal."""
-
-    def __init__(self, coin_id: str, amount: str, eth_address: str, tag: str = ""):
+    def __init__(self, coin_id: str, amount: str, eth_address: str):
         self.coin_id = coin_id
         self.amount = amount
         self.eth_address = eth_address
-        self.tag = tag
 
 
-class GetWithdrawalRecordsParams:
-    """Parameters for getting withdrawal records."""
-
-    def __init__(self, size: str = "10", offset_data: str = "", filter_coin_id_list: List[str] = None,
-                 filter_status_list: List[str] = None, filter_start_created_time_inclusive: int = 0,
-                 filter_end_created_time_exclusive: int = 0):
-        self.size = size
-        self.offset_data = offset_data
-        self.filter_coin_id_list = filter_coin_id_list or []
-        self.filter_status_list = filter_status_list or []
-        self.filter_start_created_time_inclusive = filter_start_created_time_inclusive
-        self.filter_end_created_time_exclusive = filter_end_created_time_exclusive
+class GetWithdrawSignInfoParams:
+    def __init__(self, chain_id: str, token_address: str, amount: str):
+        self.chain_id = chain_id
+        self.token_address = token_address
+        self.amount = amount
 
 
 class Client:
-    """Client for asset-related API endpoints."""
-
     def __init__(self, async_client: AsyncClient):
-        """
-        Initialize the asset client.
-
-        Args:
-            async_client: The async client for common functionality
-        """
         self.async_client = async_client
 
-    async def get_account_asset(self) -> Dict[str, Any]:
-        """
-        Get the account asset information.
-        Note: This method delegates to the account client since it's an account endpoint.
-
-        Returns:
-            Dict[str, Any]: The account asset information
-
-        Raises:
-            ValueError: If the request fails
-        """
-        # This is actually an account endpoint, not an asset endpoint
-        # We should delegate to the account client
-        raise NotImplementedError("This method should be called from the account client: client.account.get_account_asset()")
-
-    async def get_asset_orders(
-        self,
-        params: GetAssetOrdersParams
-    ) -> Dict[str, Any]:
-        """
-        Get asset orders with pagination.
-
-        Args:
-            params: Parameters for the request
-
-        Returns:
-            Dict[str, Any]: The asset orders
-
-        Raises:
-            ValueError: If the request fails
-        """
-        query_params = {
-            "accountId": str(self.async_client.get_account_id())
-        }
-
-        # Add pagination parameters
+    async def get_asset_orders(self, params: GetAssetOrdersParams) -> Dict[str, Any]:
+        query_params = {"accountId": str(self.async_client.get_account_id())}
         if params.size:
             query_params["size"] = params.size
         if params.offset_data:
             query_params["offsetData"] = params.offset_data
-
-        # Add filter parameters
-        if params.filter_coin_id_list:
-            query_params["filterCoinIdList"] = ",".join(params.filter_coin_id_list)
-
-        # Add time filters
-        if params.filter_start_created_time_inclusive > 0:
-            query_params["filterStartCreatedTimeInclusive"] = str(params.filter_start_created_time_inclusive)
-        if params.filter_end_created_time_exclusive > 0:
-            query_params["filterEndCreatedTimeExclusive"] = str(params.filter_end_created_time_exclusive)
-
+        if params.chain_id:
+            query_params["chainId"] = params.chain_id
+        if params.type_list:
+            query_params["typeList"] = ",".join(params.type_list)
+        if params.start_time > 0:
+            query_params["startTime"] = str(params.start_time)
+        if params.end_time > 0:
+            query_params["endTime"] = str(params.end_time)
         return await self.async_client.make_authenticated_request(
-            method="GET",
-            path="/api/v1/private/assets/getAllOrdersPage",
-            params=query_params
-        )
+            method="GET", path="/api/v2/private/assets/getAllOrdersPage", params=query_params)
 
-    async def get_coin_rates(self, chain_id: str = "1", coin: str = "0xdac17f958d2ee523a2206206994597c13d831ec7") -> Dict[str, Any]:
-        """
-        Get coin rates.
-
-        Args:
-            chain_id: Chain ID (default: "1" for Ethereum mainnet)
-            coin: Coin contract address (default: USDT)
-
-        Returns:
-            Dict[str, Any]: The coin rates
-
-        Raises:
-            ValueError: If the request fails
-        """
-        params = {
-            "chainId": chain_id,
-            "coin": coin
-        }
-
-        return await self.async_client.make_authenticated_request(
-            method="GET",
-            path="/api/v1/private/assets/getCoinRate",
-            params=params
-        )
-
-    async def create_withdrawal(self, param : CreateWithdrawalParams, metadata: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Create a withdrawal request.
-
-        Args:
-            coin_id: The coin ID
-            amount: The withdrawal amount
-            eth_address: The Ethereum address to withdraw to
-
-        Returns:
-            Dict[str, Any]: The withdrawal result
-
-        Raises:
-            ValueError: If the request fails
-        """
+    async def create_withdrawal(self, params: CreateWithdrawalParams, metadata: Dict[str, Any]) -> Dict[str, Any]:
         coin = None
-        for coin_data in metadata['coinList']:
-            if coin_data.get('coinId') == param.coin_id:
+        for coin_data in metadata.get("coinList", []):
+            if coin_data.get("coinId") == params.coin_id:
                 coin = coin_data
                 break
-
         if not coin:
-            raise ValueError(f"coin not found: {param.coin_id}")
+            raise ValueError(f"coin not found: {params.coin_id}")
 
-        position_id = str(self.async_client.get_account_id())
+        if not self.async_client.wallet_pri_key:
+            raise ValueError("wallet private key is required for v2 EIP-712 withdrawal signing")
+
+        account_id = str(self.async_client.get_account_id())
         client_id = self.async_client.get_random_client_id()
         nonce = self.async_client.calc_nonce(client_id)
 
-        l2_expire_time = int(time.time() * 1000) + (14 * 24 * 60 * 60 * 1000)  # 14 days
-        l2_expire_hour = l2_expire_time / (60 * 60 * 1000)
-        expire_time_unix = str(int(l2_expire_hour))
-        normalized_amount = str(int(float(param.amount) * 10 ** int(coin.get('decimal', 6))))
+        l2_expire_time = int(time.time() * 1000) + (14 * 24 * 60 * 60 * 1000)
+        expiration_timestamp_seconds = l2_expire_time // 1000
 
-        sig_hash = self.async_client.calc_withdrawal_to_address_hash(
-            coin.get('starkExAssetId', ''),
-            position_id,
-            param.eth_address,
-            nonce,
-            expire_time_unix,
-            normalized_amount
-        )
+        coin_resolution = self.async_client.parse_resolution(coin.get("resolution", ""))
+        amount_dm = Decimal(params.amount)
+        amount_int = str(int(amount_dm * coin_resolution))
 
-        # Sign the order
-        sig = self.async_client.sign(sig_hash)
+        global_data = metadata.get("global", {})
+        chain_id = (global_data.get("nativeChainId") or global_data.get("chainId") or "").strip()
+        verifying_contract = (global_data.get("contractAddress") or "").strip()
+        if not chain_id:
+            raise ValueError("metadata.global.nativeChainId/chainId is required")
+        if not verifying_contract:
+            raise ValueError("metadata.global.contractAddress is required")
 
-        # Convert signature to string (include v component like Go SDK, even though it's empty)
-        sig_str = f"{sig.r}{sig.s}{sig.v if hasattr(sig, 'v') and sig.v else ''}"
+        signer = self.async_client.resolve_wallet_signer_address()
+        domain = build_eip712_domain("EdgeX", "1", chain_id, verifying_contract)
 
+        typed_data = {
+            "types": {
+                "EIP712Domain": EIP712_DOMAIN_TYPE,
+                "WithdrawalParams": WITHDRAWAL_PARAMS_TYPE,
+            },
+            "primaryType": "WithdrawalParams",
+            "domain": domain,
+            "message": {
+                "from": account_id,
+                "toAddress": params.eth_address,
+                "amount": amount_int,
+                "feeAmount": "0",
+                "nonce": str(nonce),
+                "expirationTimestamp": str(expiration_timestamp_seconds),
+                "signer": signer,
+            },
+        }
+
+        l2_signature = self.async_client.sign_typed_data_with_wallet_key(typed_data)
 
         data = {
-            "accountId": position_id,
-            "coinId": param.coin_id,
-            "amount": param.amount,
-            "ethAddress": param.eth_address,
+            "accountId": account_id,
+            "coinId": params.coin_id,
+            "amount": params.amount,
+            "ethAddress": params.eth_address,
             "clientWithdrawId": client_id,
-            "expireTime": str(l2_expire_time),
-            "l2Signature": sig_str
+            "l2ExpireTime": str(l2_expire_time),
+            "signature": l2_signature,
+            "signer": signer,
+            "nonce": str(nonce),
         }
 
         return await self.async_client.make_authenticated_request(
-            method="POST",
-            path="/api/v1/private/assets/createNormalWithdraw",
-            data=data
-        )
+            method="POST", path="/api/v2/private/assets/createNormalWithdraw", data=data)
 
-    async def get_withdrawal_records(
-        self,
-        size: str = "",
-        offset_data: str = "",
-        filter_coin_id_list: List[str] = None,
-        filter_status_list: List[str] = None,
-        filter_start_created_time_inclusive: int = 0,
-        filter_end_created_time_exclusive: int = 0
-    ) -> Dict[str, Any]:
-        """
-        Get withdrawal records with pagination.
-
-        Args:
-            size: Size of the page
-            offset_data: Offset data for pagination
-            filter_coin_id_list: Filter by coin IDs
-            filter_status_list: Filter by status
-            filter_start_created_time_inclusive: Filter start time (inclusive)
-            filter_end_created_time_exclusive: Filter end time (exclusive)
-
-        Returns:
-            Dict[str, Any]: The withdrawal records
-
-        Raises:
-            ValueError: If the request fails
-        """
-        query_params = {
-            "accountId": str(self.async_client.get_account_id())
-        }
-
-        # Add pagination parameters
-        if size:
-            query_params["size"] = size
-        if offset_data:
-            query_params["offsetData"] = offset_data
-
-        # Add filter parameters
-        if filter_coin_id_list:
-            query_params["filterCoinIdList"] = ",".join(filter_coin_id_list)
-        if filter_status_list:
-            query_params["filterStatusList"] = ",".join(filter_status_list)
-
-        # Add time filters
-        if filter_start_created_time_inclusive > 0:
-            query_params["filterStartCreatedTimeInclusive"] = str(filter_start_created_time_inclusive)
-        if filter_end_created_time_exclusive > 0:
-            query_params["filterEndCreatedTimeExclusive"] = str(filter_end_created_time_exclusive)
-
-        return await self.async_client.make_authenticated_request(
-            method="GET",
-            path="/api/v1/private/assets/getNormalWithdrawById",
-            params=query_params
-        )
-
-    async def get_withdrawable_amount(self, address: str) -> Dict[str, Any]:
-        """
-        Get the withdrawable amount for a coin.
-
-        Args:
-            address: The coin contract address
-
-        Returns:
-            Dict[str, Any]: The withdrawable amount information
-
-        Raises:
-            ValueError: If the request fails
-        """
+    async def get_withdraw_sign_info(self, params: GetWithdrawSignInfoParams) -> Dict[str, Any]:
         query_params = {
             "accountId": str(self.async_client.get_account_id()),
-            "address": address
+            "chainId": params.chain_id,
+            "tokenAddress": params.token_address,
+            "amount": params.amount,
         }
-
         return await self.async_client.make_authenticated_request(
-            method="GET",
-            path="/api/v1/private/assets/getNormalWithdrawableAmount",
-            params=query_params
-        )
-
-    async def get_withdrawal_records(self, params: GetWithdrawalRecordsParams) -> Dict[str, Any]:
-        """
-        Get withdrawal records with pagination.
-
-        Args:
-            params: Parameters for the request
-
-        Returns:
-            Dict[str, Any]: The withdrawal records
-
-        Raises:
-            ValueError: If the request fails
-        """
-        query_params = {
-            "accountId": str(self.async_client.get_account_id())
-        }
-
-        # Add pagination parameters
-        if params.size:
-            query_params["size"] = params.size
-        if params.offset_data:
-            query_params["offsetData"] = params.offset_data
-
-        # Add filter parameters
-        if params.filter_coin_id_list:
-            query_params["filterCoinIdList"] = ",".join(params.filter_coin_id_list)
-        if params.filter_status_list:
-            query_params["filterStatusList"] = ",".join(params.filter_status_list)
-
-        # Add time filters
-        if params.filter_start_created_time_inclusive > 0:
-            query_params["filterStartCreatedTimeInclusive"] = str(params.filter_start_created_time_inclusive)
-        if params.filter_end_created_time_exclusive > 0:
-            query_params["filterEndCreatedTimeExclusive"] = str(params.filter_end_created_time_exclusive)
-
-        return await self.async_client.make_authenticated_request(
-            method="GET",
-            path="/api/v1/private/assets/getNormalWithdrawById",
-            params=query_params
-        )
+            method="GET", path="/api/v2/private/assets/getWithdrawSignInfo", params=query_params)

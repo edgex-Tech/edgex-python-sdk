@@ -7,7 +7,7 @@ def read_readme():
 
 setup(
     name="edgex-python-sdk",
-    version="0.4.0",
+    version="2.0.0",
     description="A Python SDK for interacting with the EdgeX Exchange API",
     long_description=read_readme(),
     long_description_content_type="text/markdown",
@@ -23,10 +23,7 @@ setup(
     install_requires=[
         "aiohttp>=3.8.0",
         "websocket-client>=1.0.0",
-        "pydantic>=1.8.0",
-        "python-dotenv>=0.15.0",
-        "pycryptodome>=3.15.0",
-        "ecdsa>=0.17.0",
+        "eth-account>=0.13.0",
     ],
     extras_require={
         "dev": [

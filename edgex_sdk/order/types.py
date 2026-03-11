@@ -1,31 +1,8 @@
-from dataclasses import dataclass
 from enum import Enum
-from typing import List, Optional, Dict, Any
+from typing import Optional, List
 
 
-class TimeInForce(str, Enum):
-    """Time in force options for orders."""
-    UNKNOWN_TIME_IN_FORCE = "UNKNOWN_TIME_IN_FORCE"
-    GOOD_TIL_CANCEL = "GOOD_TIL_CANCEL"
-    FILL_OR_KILL = "FILL_OR_KILL"
-    IMMEDIATE_OR_CANCEL = "IMMEDIATE_OR_CANCEL"
-    POST_ONLY = "POST_ONLY"
-
-
-class OrderSide(str, Enum):
-    """Order side options."""
-    BUY = "BUY"
-    SELL = "SELL"
-
-
-class ResponseCode(str, Enum):
-    """API response codes."""
-    SUCCESS = "SUCCESS"
-
-
-class OrderType(str, Enum):
-    """Order type options."""
-    UNKNOWN = "UNKNOWN_ORDER_TYPE"
+class OrderType(Enum):
     LIMIT = "LIMIT"
     MARKET = "MARKET"
     STOP_LIMIT = "STOP_LIMIT"
@@ -34,132 +11,133 @@ class OrderType(str, Enum):
     TAKE_PROFIT_MARKET = "TAKE_PROFIT_MARKET"
 
 
-@dataclass
-class OrderFilterParams:
-    """Common filter types used across different order APIs."""
-    filter_coin_id_list: List[str] = None  # Filter by coin IDs, empty means all coins
-    filter_contract_id_list: List[str] = None  # Filter by contract IDs, empty means all contracts
-    filter_type_list: List[str] = None  # Filter by order types
-    filter_status_list: List[str] = None  # Filter by order statuses
-    filter_is_liquidate: Optional[bool] = None  # Filter by liquidation status
-    filter_is_deleverage: Optional[bool] = None  # Filter by deleverage status
-    filter_is_position_tpsl: Optional[bool] = None  # Filter by position take-profit/stop-loss status
-    
-    def __post_init__(self):
-        """Initialize empty lists."""
-        if self.filter_coin_id_list is None:
-            self.filter_coin_id_list = []
-        if self.filter_contract_id_list is None:
-            self.filter_contract_id_list = []
-        if self.filter_type_list is None:
-            self.filter_type_list = []
-        if self.filter_status_list is None:
-            self.filter_status_list = []
+class OrderSide(Enum):
+    BUY = "BUY"
+    SELL = "SELL"
 
 
-@dataclass
-class PaginationParams:
-    """Common pagination parameters."""
-    size: str = ""  # Size of the page, must be greater than 0 and less than or equal to 100/200
-    offset_data: str = ""  # Offset data for pagination. Empty string gets the first page
+class TimeInForce(Enum):
+    GOOD_TIL_CANCEL = "GOOD_TIL_CANCEL"
+    IMMEDIATE_OR_CANCEL = "IMMEDIATE_OR_CANCEL"
+    FILL_OR_KILL = "FILL_OR_KILL"
+    POST_ONLY = "POST_ONLY"
 
 
-@dataclass
-class OrderFillTransactionParams(PaginationParams, OrderFilterParams):
-    """Parameters for getting order fill transactions."""
-    filter_order_id_list: List[str] = None  # Filter by order IDs, empty means all orders
-    filter_start_created_time_inclusive: int = 0  # Filter start time (inclusive), 0 means from earliest
-    filter_end_created_time_exclusive: int = 0  # Filter end time (exclusive), 0 means until latest
-    
-    def __post_init__(self):
-        """Initialize empty lists."""
-        super().__post_init__()
-        if self.filter_order_id_list is None:
-            self.filter_order_id_list = []
-
-
-@dataclass
-class GetActiveOrderParams(PaginationParams, OrderFilterParams):
-    """Parameters for getting active orders."""
-    filter_start_created_time_inclusive: int = 0  # Filter start time (inclusive), 0 means from earliest
-    filter_end_created_time_exclusive: int = 0  # Filter end time (exclusive), 0 means until latest
-
-
-@dataclass
-class GetHistoryOrderParams(PaginationParams, OrderFilterParams):
-    """Parameters for getting historical orders."""
-    filter_start_created_time_inclusive: int = 0  # Filter start time (inclusive), 0 means from earliest
-    filter_end_created_time_exclusive: int = 0  # Filter end time (exclusive), 0 means until latest
-
-
-@dataclass
 class CreateOrderParams:
-    """Parameters for creating an order."""
-    contract_id: str
-    price: str
-    size: str
-    type: OrderType
-    side: OrderSide
-    client_order_id: Optional[str] = None
-    expire_time: Optional[int] = None
-    time_in_force: Optional[str] = None
-    reduce_only: bool = False
+    def __init__(
+        self,
+        contract_id: str,
+        price: str,
+        size: str,
+        type: OrderType,
+        side: OrderSide,
+        time_in_force: str = "",
+        client_order_id: str = "",
+        expire_time: int = 0,
+        reduce_only: bool = False,
+    ):
+        self.contract_id = contract_id
+        self.price = price
+        self.size = size
+        self.type = type
+        self.side = side
+        self.time_in_force = time_in_force
+        self.client_order_id = client_order_id
+        self.expire_time = expire_time
+        self.reduce_only = reduce_only
 
 
-@dataclass
 class CancelOrderParams:
-    """Parameters for canceling orders."""
-    order_id: str = ""  # Order ID to cancel
-    client_order_id: str = ""  # Client order ID to cancel
-    contract_id: str = ""  # Contract ID for canceling all orders
+    def __init__(
+        self,
+        order_id: str = "",
+        client_order_id: str = "",
+        contract_id: str = "",
+    ):
+        self.order_id = order_id
+        self.client_order_id = client_order_id
+        self.contract_id = contract_id
 
 
-class OrderResponse:
-    """Response from creating an order."""
-    code: str
-    data: Dict[str, Any]
-    error_param: Optional[Dict[str, Any]]
-    request_time: str
-    response_time: str
-    trace_id: str
-    
-    def __init__(self, response_data: Dict[str, Any]):
-        """Initialize from response data."""
-        self.code = response_data.get("code", "")
-        self.data = response_data.get("data", {})
-        self.error_param = response_data.get("errorParam")
-        self.request_time = response_data.get("requestTime", "")
-        self.response_time = response_data.get("responseTime", "")
-        self.trace_id = response_data.get("traceId", "")
+class GetActiveOrderParams:
+    def __init__(
+        self,
+        size: str = "",
+        offset_data: str = "",
+        filter_coin_id_list: List[str] = None,
+        filter_contract_id_list: List[str] = None,
+        filter_type_list: List[str] = None,
+        filter_status_list: List[str] = None,
+        filter_is_liquidate: Optional[bool] = None,
+        filter_is_deleverage: Optional[bool] = None,
+        filter_is_position_tpsl: Optional[bool] = None,
+        filter_start_created_time_inclusive: int = 0,
+        filter_end_created_time_exclusive: int = 0,
+    ):
+        self.size = size
+        self.offset_data = offset_data
+        self.filter_coin_id_list = filter_coin_id_list or []
+        self.filter_contract_id_list = filter_contract_id_list or []
+        self.filter_type_list = filter_type_list or []
+        self.filter_status_list = filter_status_list or []
+        self.filter_is_liquidate = filter_is_liquidate
+        self.filter_is_deleverage = filter_is_deleverage
+        self.filter_is_position_tpsl = filter_is_position_tpsl
+        self.filter_start_created_time_inclusive = filter_start_created_time_inclusive
+        self.filter_end_created_time_exclusive = filter_end_created_time_exclusive
 
 
-class MaxOrderSizeResponse(OrderResponse):
-    """Response from getting max order size."""
-    pass
+class OrderFillTransactionParams:
+    def __init__(
+        self,
+        size: str = "",
+        offset_data: str = "",
+        filter_coin_id_list: List[str] = None,
+        filter_contract_id_list: List[str] = None,
+        filter_order_id_list: List[str] = None,
+        filter_is_liquidate: Optional[bool] = None,
+        filter_is_deleverage: Optional[bool] = None,
+        filter_is_position_tpsl: Optional[bool] = None,
+        filter_start_created_time_inclusive: int = 0,
+        filter_end_created_time_exclusive: int = 0,
+    ):
+        self.size = size
+        self.offset_data = offset_data
+        self.filter_coin_id_list = filter_coin_id_list or []
+        self.filter_contract_id_list = filter_contract_id_list or []
+        self.filter_order_id_list = filter_order_id_list or []
+        self.filter_is_liquidate = filter_is_liquidate
+        self.filter_is_deleverage = filter_is_deleverage
+        self.filter_is_position_tpsl = filter_is_position_tpsl
+        self.filter_start_created_time_inclusive = filter_start_created_time_inclusive
+        self.filter_end_created_time_exclusive = filter_end_created_time_exclusive
 
 
-class OrderListResponse(OrderResponse):
-    """Response from getting a list of orders."""
-    pass
-
-
-class OrderPageResponse(OrderResponse):
-    """Response from getting paginated orders."""
-    pass
-
-
-class OrderFillTransactionResponse(OrderResponse):
-    """Response from getting order fill transactions."""
-    pass
-
-
-@dataclass
-class OrderFillFilterParams(OrderFilterParams):
-    """Parameters for filtering order fill transactions."""
-    filter_order_id_list: List[str] = None  # Filter by order IDs, empty means all orders
-    
-    def __post_init__(self):
-        """Initialize empty lists."""
-        super().__post_init__()
-        if self.filter_order_id_list is None:
-            self.filter_order_id_list = []
+class GetHistoryOrderPageParams:
+    def __init__(
+        self,
+        size: int = 100,
+        offset_data: str = "",
+        filter_coin_id_list: List[str] = None,
+        filter_contract_id_list: List[str] = None,
+        filter_type_list: List[str] = None,
+        filter_status_list: List[str] = None,
+        filter_is_liquidate_list: List[bool] = None,
+        filter_is_deleverage_list: List[bool] = None,
+        filter_is_position_tpsl_list: List[bool] = None,
+        filter_start_created_time_inclusive: str = "",
+        filter_end_created_time_exclusive: str = "",
+        filter_order_id_list: List[str] = None,
+    ):
+        self.size = size
+        self.offset_data = offset_data
+        self.filter_coin_id_list = filter_coin_id_list or []
+        self.filter_contract_id_list = filter_contract_id_list or []
+        self.filter_type_list = filter_type_list or []
+        self.filter_status_list = filter_status_list or []
+        self.filter_is_liquidate_list = filter_is_liquidate_list or []
+        self.filter_is_deleverage_list = filter_is_deleverage_list or []
+        self.filter_is_position_tpsl_list = filter_is_position_tpsl_list or []
+        self.filter_start_created_time_inclusive = filter_start_created_time_inclusive
+        self.filter_end_created_time_exclusive = filter_end_created_time_exclusive
+        self.filter_order_id_list = filter_order_id_list or []

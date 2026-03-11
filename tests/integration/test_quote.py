@@ -127,8 +127,8 @@ class TestQuoteAPI(BaseIntegrationTest):
         # Create parameters
         params = GetMultiContractKLineParams(
             contract_id_list=[TEST_CONTRACT_ID],
-            interval="1m",
-            limit=1
+            kline_type="MINUTE_1",
+            size=1
         )
 
         # Get multi-contract K-line data

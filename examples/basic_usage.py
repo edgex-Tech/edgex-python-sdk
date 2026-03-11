@@ -21,7 +21,7 @@ from edgex_sdk import (
     GetOrderBookDepthParams,
     KlineType,
     WebSocketManager,
-    GetWithdrawalRecordsParams,
+    GetWithdrawSignInfoParams,
     CreateTransferOutParams,
     TransferReason
 )
@@ -142,9 +142,9 @@ async def main():
 
         transferOrders = await client.asset.get_asset_orders(
             GetAssetOrdersParams(
-                size=10,
-                filter_start_created_time_inclusive=1761408000,
-                filter_end_created_time_exclusive=1762099199
+                size="10",
+                start_time=1761408000,
+                end_time=1762099199
             )
         )
         print(f"Tranfer orders: {transferOrders}")
@@ -162,13 +162,13 @@ async def main():
     ))
     print(f"WithdrawResult: {withdrawResult}")
 
-    maxWithdrawalAmount = await client.asset.get_withdrawable_amount(address="your_eth_address")
-    print(f"Max withdrawal amount: {maxWithdrawalAmount}")
-
-    # Get withdrawal records with default parameters
-    withdrawal_params = GetWithdrawalRecordsParams(size="10")
-    withdrawResult = await client.asset.get_withdrawal_records(withdrawal_params)
-    print(f"withdrawResult: {withdrawResult}")
+    # Get withdraw sign info (pool balance and fee)
+    sign_info = await client.asset.get_withdraw_sign_info(GetWithdrawSignInfoParams(
+        chain_id="1",
+        token_address="0xdac17f958d2ee523a2206206994597c13d831ec7",
+        amount="100"
+    ))
+    print(f"Withdraw sign info: {sign_info}")
 
 
     # WebSocket example

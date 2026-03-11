@@ -7,7 +7,7 @@ from typing import Dict, Any
 from edgex_sdk import (
     GetAssetOrdersParams,
     CreateWithdrawalParams,
-    GetWithdrawalRecordsParams
+    GetWithdrawSignInfoParams,
 )
 from tests.integration.base_test import BaseIntegrationTest
 
@@ -90,63 +90,25 @@ class TestAssetAPI(BaseIntegrationTest):
                 if field in rate:
                     logger.info(f"Rate {field}: {rate[field]}")
 
-    def test_get_withdrawable_amount(self):
-        """Test get_withdrawable_amount method."""
-        # Test with USDT contract address
-        address = "0xdac17f958d2ee523a2206206994597c13d831ec7"  # USDT contract address
-
-        try:
-            amount = self.run_async(self.client.asset.get_withdrawable_amount(address))
-
-            # Check response
-            self.assertResponseSuccess(amount)
-
-            # Check data structure
-            data = amount.get("data", {})
-            self.assertIsInstance(data, dict)
-
-            if "withdrawableAmount" in data:
-                withdrawable = data["withdrawableAmount"]
-                logger.info(f"Withdrawable amount for address {address}: {withdrawable}")
-
-        except Exception as e:
-            # Asset APIs require X-edgeX-Api-Key header that test accounts don't have
-            logger.info(f"Withdrawable amount API requires API key (expected): {e}")
-            self.skipTest("Skipping test due to API key requirement")
-
-    def test_get_withdrawal_records(self):
-        """Test get_withdrawal_records method."""
-        params = GetWithdrawalRecordsParams(
-            size=10
+    def test_get_withdraw_sign_info(self):
+        """Test get_withdraw_sign_info method."""
+        params = GetWithdrawSignInfoParams(
+            chain_id="1",
+            token_address="0xdac17f958d2ee523a2206206994597c13d831ec7",
+            amount="100"
         )
 
         try:
-            records = self.run_async(self.client.asset.get_withdrawal_records(params))
+            sign_info = self.run_async(self.client.asset.get_withdraw_sign_info(params))
 
-            # Check response
-            self.assertResponseSuccess(records)
+            self.assertResponseSuccess(sign_info)
 
-            # Check data structure
-            data = records.get("data", {})
+            data = sign_info.get("data", {})
             self.assertIsInstance(data, dict)
-
-            if "withdrawalList" in data:
-                withdrawal_list = data["withdrawalList"]
-                self.assertIsInstance(withdrawal_list, list)
-                logger.info(f"Found {len(withdrawal_list)} withdrawal records")
-
-                # Check withdrawal structure if any records exist
-                if withdrawal_list:
-                    withdrawal = withdrawal_list[0]
-                    self.assertIsInstance(withdrawal, dict)
-                    expected_fields = ["id", "coinId", "amount", "status", "createdTime"]
-                    for field in expected_fields:
-                        if field in withdrawal:
-                            logger.info(f"Withdrawal {field}: {withdrawal[field]}")
+            logger.info(f"Withdraw sign info: {data}")
 
         except Exception as e:
-            # Asset APIs require X-edgeX-Api-Key header that test accounts don't have
-            logger.info(f"Withdrawal records API requires API key (expected): {e}")
+            logger.info(f"Withdraw sign info API requires API key (expected): {e}")
             self.skipTest("Skipping test due to API key requirement")
 
     def test_create_withdrawal_validation(self):

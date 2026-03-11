@@ -1,28 +1,10 @@
-# EdgeX Python SDK Requirements
-# Core dependencies for the EdgeX Python SDK
+# EdgeX Python SDK Requirements (v2)
 
 # Async HTTP client for API requests
 aiohttp>=3.8.0
 
-# WebSocket client for real-time data (will be replaced with aiohttp ws)
+# WebSocket client for real-time data
 websocket-client>=1.0.0
 
-# Data validation and serialization
-pydantic>=1.8.0
-
-# Environment variable management
-python-dotenv>=0.15.0
-
-# Cryptographic library (replaces pysha3 for better compatibility)
-pycryptodome>=3.15.0
-
-# Elliptic curve cryptography for StarkEx signing
-ecdsa>=0.17.0
-
-# Development and testing dependencies (optional)
-# Uncomment these for development work:
-# pytest>=6.0.0
-# pytest-asyncio>=0.18.0
-# black>=21.0.0
-# flake8>=3.8.0
-# mypy>=0.812
+# EIP-712 signing (eth-account includes eth-abi, eth-utils, etc.)
+eth-account>=0.13.0

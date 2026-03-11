@@ -1,215 +1,194 @@
-import asyncio
-import binascii
 import hashlib
 import time
-import uuid
-from typing import Dict, Any, Optional, Tuple, List, Union
 import json
+from typing import Dict, Any, Optional, List, Union
+from decimal import Decimal
 
 import aiohttp
-from Crypto.Hash import keccak
 
-from .signing_adapter import SigningAdapter
-
-# Import field prime for modular arithmetic
-try:
-    from ..crypto.constants import FIELD_PRIME
-except ImportError:
-    # Fallback if crypto module is not available
-    FIELD_PRIME = 0x800000000000011000000000000000000000000000000000000000000000001
-
-# Constants
-LIMIT_ORDER_WITH_FEE_TYPE = 3
-WITHDRAWAL_TYPE = 6
-WITHDRAWAL_TO_ADDRESS_TYPE = 7
-
-
-class L2Signature:
-    """Represents a signature for L2 operations."""
-
-    def __init__(self, r: str, s: str, v: str = ""):
-        self.r = r
-        self.s = s
-        self.v = v
+from .auth import (
+    API_VERSION_V2,
+    SIGNING_METHOD_HMAC,
+    DEFAULT_HEADER_KEY,
+    build_hmac_headers,
+    should_sign_with_hmac,
+    rewrite_path_to_v2,
+    get_value,
+)
+from .eip712 import (
+    derive_address_from_private_key,
+    sign_typed_data,
+)
 
 
 class AsyncClient:
-    """Async base client with common functionality."""
-
-    def __init__(self, base_url: str, account_id: int, stark_pri_key: str, 
-                 signing_adapter: Optional[SigningAdapter] = None,
-                 timeout: float = 30.0, connector_limit: int = 100):
-        """
-        Initialize the async internal client.
-
-        Args:
-            base_url: Base URL for API endpoints
-            account_id: Account ID for authentication
-            stark_pri_key: Stark private key for signing
-            signing_adapter: Optional signing adapter to use for cryptographic operations
-            timeout: Request timeout in seconds
-            connector_limit: Maximum number of connections in the pool
-        """
+    def __init__(
+        self,
+        base_url: str,
+        account_id: int,
+        api_key: str = "",
+        api_passphrase: str = "",
+        api_secret: str = "",
+        trading_pri_key: str = "",
+        wallet_pri_key: str = "",
+        trading_addr: str = "",
+        wallet_addr: str = "",
+        auth_header_key: str = DEFAULT_HEADER_KEY,
+        timeout: float = 30.0,
+        connector_limit: int = 100,
+    ):
         self.base_url = base_url
         self.account_id = account_id
-        self.stark_pri_key = stark_pri_key
-        
-        # Use the provided signing adapter (required)
-        if signing_adapter is None:
-            raise ValueError("signing_adapter is required")
-        self.signing_adapter = signing_adapter
-        
-        # Store configuration for later session creation
-        self._session = None
+        self.api_key = api_key
+        self.api_passphrase = api_passphrase
+        self.api_secret = api_secret
+        self.trading_pri_key = trading_pri_key
+        self.wallet_pri_key = wallet_pri_key
+        self.trading_addr = trading_addr
+        self.wallet_addr = wallet_addr
+        self.auth_header_key = auth_header_key
+
+        self._session: Optional[aiohttp.ClientSession] = None
         self._timeout = timeout
         self._connector_limit = connector_limit
         self._closed = False
 
     async def __aenter__(self):
-        """Async context manager entry."""
         await self._ensure_session()
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        """Async context manager exit."""
         await self.close()
 
     async def _ensure_session(self):
-        """Ensure the aiohttp session is created."""
         if self._session is None or self._session.closed:
-            # Create connector and session when needed (inside event loop)
             timeout_config = aiohttp.ClientTimeout(total=self._timeout)
             connector = aiohttp.TCPConnector(
                 limit=self._connector_limit,
                 limit_per_host=30,
                 keepalive_timeout=30,
-                enable_cleanup_closed=True
+                enable_cleanup_closed=True,
             )
-
             self._session = aiohttp.ClientSession(
                 timeout=timeout_config,
                 connector=connector,
                 headers={
                     "Content-Type": "application/json",
-                    "Accept": "application/json"
-                }
+                    "Accept": "application/json",
+                },
             )
 
     async def close(self):
-        """Close the HTTP session and cleanup resources."""
         if self._session and not self._session.closed:
             await self._session.close()
         self._closed = True
 
     @property
     def session(self) -> aiohttp.ClientSession:
-        """Get the HTTP session, ensuring it's created."""
         if self._session is None or self._session.closed:
             raise RuntimeError("Session not initialized. Use 'async with client:' or call '_ensure_session()'")
         return self._session
 
     def get_account_id(self) -> int:
-        """Get the account ID."""
         return self.account_id
 
-    def get_stark_pri_key(self) -> str:
-        """Get the stark private key."""
-        return self.stark_pri_key
+    # ── resolution parsing ──
 
-    def sign(self, message_hash: bytes) -> L2Signature:
-        """
-        Sign a message hash using the client's Stark private key.
+    @staticmethod
+    def parse_resolution(resolution: str) -> Decimal:
+        resolution = (resolution or "").strip()
+        if not resolution:
+            raise ValueError("resolution is empty")
+        lower = resolution.lower()
+        if lower.startswith("0x"):
+            return Decimal(int(lower, 16))
+        return Decimal(resolution)
 
-        Args:
-            message_hash: The hash of the message to sign
+    # ── signer address helpers ──
 
-        Returns:
-            L2Signature: The signature components
+    def resolve_trading_signer_address(self) -> str:
+        if self.trading_addr:
+            return self.trading_addr
+        if not self.trading_pri_key:
+            raise ValueError("trading private key is required to derive signer address")
+        self.trading_addr = derive_address_from_private_key(self.trading_pri_key)
+        return self.trading_addr
 
-        Raises:
-            ValueError: If the stark private key is not set or invalid
-        """
-        private_key = self.get_stark_pri_key()
-        if not private_key:
-            raise ValueError("stark private key not set")
+    def resolve_wallet_signer_address(self) -> str:
+        if self.wallet_addr:
+            return self.wallet_addr
+        if not self.wallet_pri_key:
+            raise ValueError("wallet private key is required to derive signer address")
+        self.wallet_addr = derive_address_from_private_key(self.wallet_pri_key)
+        return self.wallet_addr
 
-        # Sign the message using the signing adapter
-        try:
-            r, s = self.signing_adapter.sign(message_hash, private_key)
-            return L2Signature(r=r, s=s, v="")
-        except Exception as e:
-            raise ValueError(f"failed to sign message: {str(e)}")
+    def sign_typed_data_with_trading_key(self, typed_data: Dict[str, Any]) -> str:
+        if not self.trading_pri_key:
+            raise ValueError("trading private key is required for EIP-712 signing")
+        return sign_typed_data(self.trading_pri_key, typed_data)
 
-    def calc_nonce(self, client_order_id: str) -> int:
-        """
-        Calculate a nonce from a client order ID.
+    def sign_typed_data_with_wallet_key(self, typed_data: Dict[str, Any]) -> str:
+        if not self.wallet_pri_key:
+            raise ValueError("wallet private key is required for EIP-712 signing")
+        return sign_typed_data(self.wallet_pri_key, typed_data)
 
-        Args:
-            client_order_id: The client order ID
+    # ── nonce / client id ──
 
-        Returns:
-            int: The calculated nonce
-        """
-        # Use SHA256 like the Go SDK (not Keccak256)
+    @staticmethod
+    def calc_nonce(client_order_id: str) -> int:
         h = hashlib.sha256()
         h.update(client_order_id.encode())
-        hash_hex = h.hexdigest()
-        return int(hash_hex[:8], 16)
+        return int(h.hexdigest()[:8], 16)
+
+    @staticmethod
+    def get_random_client_id() -> str:
+        return str(time.time_ns())
+
+    # ── HTTP request ──
 
     async def make_authenticated_request(
-        self, 
-        method: str, 
-        path: str, 
+        self,
+        method: str,
+        path: str,
         data: Optional[Dict[str, Any]] = None,
-        params: Optional[Dict[str, Any]] = None
+        params: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
-        """
-        Make an authenticated HTTP request.
-
-        Args:
-            method: HTTP method (GET, POST, etc.)
-            path: API path (e.g., '/api/v1/private/order/createOrder')
-            data: JSON data for POST requests
-            params: Query parameters for GET requests
-
-        Returns:
-            Dict[str, Any]: Response JSON data
-
-        Raises:
-            ValueError: If the request fails
-        """
         await self._ensure_session()
-        
-        # Generate timestamp
-        timestamp = int(time.time() * 1000)
-        
-        # Build full URL
-        url = f"{self.base_url}{path}"
-        
-        # Generate signature content
-        sign_content = self._build_signature_content(timestamp, method, path, data, params)
-        
-        # Sign the content
-        keccak_hash = keccak.new(digest_bits=256)
-        keccak_hash.update(sign_content.encode())
-        content_hash = keccak_hash.digest()
-        
-        sig = self.sign(content_hash)
 
-        # Prepare headers
-        headers = {
-            "X-edgeX-Api-Timestamp": str(timestamp),
-            "X-edgeX-Api-Signature": f"{sig.r}{sig.s}"
-        }
-        
-        # Make the request
+        actual_path = rewrite_path_to_v2(path)
+        url = f"{self.base_url}{actual_path}"
+
+        timestamp = str(int(time.time() * 1000))
+        headers: Dict[str, str] = {}
+
+        if should_sign_with_hmac(actual_path):
+            if method.upper() == "GET":
+                if params:
+                    sorted_pairs = sorted(params.items())
+                    body_str = "&".join(f"{k}={v}" for k, v in sorted_pairs)
+                else:
+                    body_str = ""
+            else:
+                body_str = get_value(data) if data else ""
+
+            headers = build_hmac_headers(
+                api_key=self.api_key,
+                api_passphrase=self.api_passphrase,
+                api_secret=self.api_secret,
+                timestamp=timestamp,
+                method=method,
+                request_uri=actual_path,
+                body=body_str,
+                header_key=self.auth_header_key,
+            )
+
         try:
             async with self.session.request(
                 method=method,
                 url=url,
                 json=data,
                 params=params,
-                headers=headers
+                headers=headers,
             ) as response:
                 if response.status != 200:
                     try:
@@ -218,331 +197,40 @@ class AsyncClient:
                     except (aiohttp.ContentTypeError, json.JSONDecodeError):
                         text = await response.text()
                         raise ValueError(f"request failed with status code: {response.status}, response: {text}")
-                
+
                 resp_data = await response.json()
-                
-                # Check response code
-                if resp_data.get("code") != "SUCCESS":
-                    error_param = resp_data.get("errorParam")
-                    if error_param:
-                        raise ValueError(f"request failed with error params: {error_param}")
-                    raise ValueError(f"request failed with code: {resp_data.get('code')}")
-                
                 return resp_data
-                
+
         except aiohttp.ClientError as e:
             raise ValueError(f"HTTP request failed: {str(e)}")
 
-    def _build_signature_content(
-        self, 
-        timestamp: int, 
-        method: str, 
-        path: str, 
-        data: Optional[Dict[str, Any]], 
-        params: Optional[Dict[str, Any]]
-    ) -> str:
-        """Build the content string for signature generation."""
-        if data:
-            # Convert body to sorted string format
-            body_str = self.get_value(data)
-            sign_content = f"{timestamp}{method}{path}{body_str}"
-        else:
-            # For requests without body, use query parameters if present
-            if params:
-                # Sort query parameters as strings (matching Go SDK exactly)
-                param_pairs = []
-                for key, value in sorted(params.items()):
-                    param_pairs.append(f"{key}={value}")
-                query_string = "&".join(param_pairs)
-                sign_content = f"{timestamp}{method}{path}{query_string}"
-            else:
-                sign_content = f"{timestamp}{method}{path}"
-        
-        return sign_content
-
-    def get_value(self, data: Union[Dict[str, Any], List[Any], str, int, float, None]) -> str:
-        """
-        Convert a value to a string representation for signing.
-        This function recursively processes dictionaries, lists, and primitive types.
-
-        Args:
-            data: The value to convert
-
-        Returns:
-            str: The string representation
-        """
-        if data is None:
-            return ""
-
-        if isinstance(data, str):
-            return data
-
-        if isinstance(data, bool):
-            # Convert boolean to lowercase string to match Go SDK
-            return str(data).lower()
-
-        if isinstance(data, (int, float)):
-            return str(data)
-
-        if isinstance(data, list):
-            if len(data) == 0:
-                return ""
-            values = [self.get_value(item) for item in data]
-            return "&".join(values)
-
-        if isinstance(data, dict):
-            # Convert all values to strings and sort by keys
-            sorted_map = {}
-            for key, val in data.items():
-                sorted_map[key] = self.get_value(val)
-
-            # Get sorted keys
-            keys = sorted(sorted_map.keys())
-
-            # Build key=value pairs
-            pairs = [f"{key}={sorted_map[key]}" for key in keys]
-            return "&".join(pairs)
-
-        # Handle other types by converting to string
-        return str(data)
-
-    def calc_limit_order_hash(
+    async def make_public_request(
         self,
-        synthetic_asset_id: str,
-        collateral_asset_id: str,
-        fee_asset_id: str,
-        is_buy: bool,
-        amount_synthetic: int,
-        amount_collateral: int,
-        amount_fee: int,
-        nonce: int,
-        account_id: int,
-        expire_time: int
-    ) -> bytes:
-        """
-        Calculate the hash for a limit order using StarkEx protocol.
+        method: str,
+        path: str,
+        params: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        await self._ensure_session()
 
-        Args:
-            synthetic_asset_id: The synthetic asset ID (hex string)
-            collateral_asset_id: The collateral asset ID (hex string)
-            fee_asset_id: The fee asset ID (hex string)
-            is_buy: Whether the order is a buy order
-            amount_synthetic: The synthetic amount
-            amount_collateral: The collateral amount
-            amount_fee: The fee amount
-            nonce: The nonce
-            account_id: The account ID (position ID)
-            expire_time: The expiration time
+        actual_path = rewrite_path_to_v2(path)
+        url = f"{self.base_url}{actual_path}"
 
-        Returns:
-            bytes: The calculated hash
-        """
-        # Remove 0x prefix if present
-        if synthetic_asset_id.startswith('0x'):
-            synthetic_asset_id = synthetic_asset_id[2:]
-        if collateral_asset_id.startswith('0x'):
-            collateral_asset_id = collateral_asset_id[2:]
-        if fee_asset_id.startswith('0x'):
-            fee_asset_id = fee_asset_id[2:]
+        try:
+            async with self.session.request(
+                method=method,
+                url=url,
+                params=params,
+            ) as response:
+                if response.status != 200:
+                    try:
+                        error_detail = await response.json()
+                        raise ValueError(f"request failed with status code: {response.status}, response: {error_detail}")
+                    except (aiohttp.ContentTypeError, json.JSONDecodeError):
+                        text = await response.text()
+                        raise ValueError(f"request failed with status code: {response.status}, response: {text}")
 
-        # Convert hex strings to integers and ensure they're within the field
-        asset_id_synthetic = int(synthetic_asset_id, 16) % FIELD_PRIME
-        asset_id_collateral = int(collateral_asset_id, 16) % FIELD_PRIME
-        asset_id_fee = int(fee_asset_id, 16) % FIELD_PRIME
+                resp_data = await response.json()
+                return resp_data
 
-        # Determine buy/sell assets based on order direction
-        if is_buy:
-            asset_id_sell = asset_id_collateral
-            asset_id_buy = asset_id_synthetic
-            amount_sell = amount_collateral
-            amount_buy = amount_synthetic
-        else:
-            asset_id_sell = asset_id_synthetic
-            asset_id_buy = asset_id_collateral
-            amount_sell = amount_synthetic
-            amount_buy = amount_collateral
-
-        # Use the signing adapter to calculate the Pedersen hash
-        # First hash: hash(asset_id_sell, asset_id_buy)
-        msg = self.signing_adapter.pedersen_hash([asset_id_sell, asset_id_buy])
-        msg_int = int.from_bytes(msg, byteorder='big')
-
-        # Second hash: hash(msg, asset_id_fee)
-        msg = self.signing_adapter.pedersen_hash([msg_int, asset_id_fee])
-        msg_int = int.from_bytes(msg, byteorder='big')
-
-        # Pack message 0
-        # packed_message0 = amount_sell * 2^64 + amount_buy * 2^64 + max_amount_fee * 2^32 + nonce
-        packed_message0 = amount_sell
-        packed_message0 = (packed_message0 << 64) + amount_buy
-        packed_message0 = (packed_message0 << 64) + amount_fee
-        packed_message0 = (packed_message0 << 32) + nonce
-        packed_message0 = packed_message0 % FIELD_PRIME  # Ensure within field
-
-        # Third hash: hash(msg, packed_message0)
-        msg = self.signing_adapter.pedersen_hash([msg_int, packed_message0])
-        msg_int = int.from_bytes(msg, byteorder='big')
-
-        # Pack message 1
-        # packed_message1 = LIMIT_ORDER_WITH_FEES * 2^64 + position_id * 2^64 + position_id * 2^64 + position_id * 2^32 + expiration_timestamp * 2^17
-        packed_message1 = LIMIT_ORDER_WITH_FEE_TYPE
-        packed_message1 = (packed_message1 << 64) + account_id
-        packed_message1 = (packed_message1 << 64) + account_id
-        packed_message1 = (packed_message1 << 64) + account_id
-        packed_message1 = (packed_message1 << 32) + expire_time
-        packed_message1 = packed_message1 << 17  # Padding
-        packed_message1 = packed_message1 % FIELD_PRIME  # Ensure within field
-
-        # Final hash: hash(msg, packed_message1)
-        msg = self.signing_adapter.pedersen_hash([msg_int, packed_message1])
-
-        return msg
-
-    def calc_transfer_hash(
-        self,
-        asset_id: int,
-        asset_id_fee: int,
-        receiver_public_key: int,
-        sender_position_id: int,
-        receiver_position_id: int,
-        fee_position_id: int,
-        nonce: int,
-        amount: int,
-        max_amount_fee: int,
-        expiration_timestamp: int
-    ) -> bytes:
-        """
-        Calculate the hash for a transfer using StarkEx protocol.
-
-        Args:
-            asset_id: The asset ID
-            asset_id_fee: The fee asset ID
-            receiver_public_key: The receiver's public key
-            sender_position_id: The sender's position ID
-            receiver_position_id: The receiver's position ID
-            fee_position_id: The fee position ID
-            nonce: The nonce
-            amount: The transfer amount
-            max_amount_fee: The maximum fee amount
-            expiration_timestamp: The expiration timestamp
-
-        Returns:
-            bytes: The calculated hash
-        """
-        # First hash: hash(asset_id, asset_id_fee)
-        msg = self.signing_adapter.pedersen_hash([asset_id, asset_id_fee])
-        msg_int = int.from_bytes(msg, byteorder='big')
-
-        # Second hash: hash(msg, receiver_public_key)
-        msg = self.signing_adapter.pedersen_hash([msg_int, receiver_public_key])
-        msg_int = int.from_bytes(msg, byteorder='big')
-
-        # Pack message 0
-        # packed_msg0 = sender_position_id * 2^64 + receiver_position_id * 2^64 + fee_position_id * 2^32 + nonce
-        packed_msg0 = sender_position_id
-        packed_msg0 = (packed_msg0 << 64) + receiver_position_id
-        packed_msg0 = (packed_msg0 << 64) + fee_position_id
-        packed_msg0 = (packed_msg0 << 32) + nonce
-        packed_msg0 = packed_msg0 % FIELD_PRIME  # Ensure within field
-
-        # Third hash: hash(msg, packed_msg0)
-        msg = self.signing_adapter.pedersen_hash([msg_int, packed_msg0])
-        msg_int = int.from_bytes(msg, byteorder='big')
-
-        # Pack message 1
-        # packed_msg1 = 4 * 2^64 + amount * 2^64 + max_amount_fee * 2^32 + expiration_timestamp * 2^81
-        packed_msg1 = 4  # Transfer type
-        packed_msg1 = (packed_msg1 << 64) + amount
-        packed_msg1 = (packed_msg1 << 64) + max_amount_fee
-        packed_msg1 = (packed_msg1 << 32) + expiration_timestamp
-        packed_msg1 = packed_msg1 << 81  # Padding
-        packed_msg1 = packed_msg1 % FIELD_PRIME  # Ensure within field
-
-        # Final hash: hash(msg, packed_msg1)
-        msg = self.signing_adapter.pedersen_hash([msg_int, packed_msg1])
-
-        return msg
-
-    def calc_withdrawal_to_address_hash(
-        self,
-        asset_id_collateral: str,
-        position_id: str,
-        eth_address: str,
-        nonce: int,
-        expiration_timestamp: str,
-        amount: str
-    ) -> bytes:
-        """
-        Calculate the hash for a withdrawal to address using StarkEx protocol.
-
-        Args:
-            asset_id_collateral: The collateral asset ID (hex string)
-            position_id: The position ID (string)
-            eth_address: The Ethereum address (hex string)
-            nonce: The nonce (string)
-            expiration_timestamp: The expiration timestamp (string)
-            amount: The withdrawal amount (string)
-
-        Returns:
-            bytes: The calculated hash
-
-        Raises:
-            ValueError: If the calculation fails
-        """
-        # Convert hex string to integer for asset ID
-        w1 = int(asset_id_collateral[2:], 16) if asset_id_collateral.startswith('0x') else int(asset_id_collateral, 16)
-        w1 = w1 % FIELD_PRIME
-
-        # Convert eth address to integer
-        eth_addr_int = int(eth_address[2:], 16) if eth_address.startswith('0x') else int(eth_address, 16)
-        eth_addr_int = eth_addr_int % FIELD_PRIME
-
-        # Pack message according to Go implementation:
-        # w5 = WITHDRAWAL_TO_ADDRESS_TYPE * 2^64 + position_id * 2^32 + nonce * 2^64 + amount * 2^32 + expiration_timestamp * 2^49
-        w5 = WITHDRAWAL_TO_ADDRESS_TYPE
-        w5 = (w5 << 64) + self.to_big_int(position_id)
-        w5 = (w5 << 32) + nonce
-        w5 = (w5 << 64) + self.to_big_int(amount)
-        w5 = (w5 << 32) + self.to_big_int(expiration_timestamp)
-        w5 = w5 << 49  # Padding
-        w5 = w5 % FIELD_PRIME  # Ensure within field
-
-        # Calculate nested Pedersen hash: Pedersen([Pedersen([w1, eth_address]), w5])
-        # First hash w1 and eth_address
-        first_hash = self.signing_adapter.pedersen_hash([w1, eth_addr_int])
-        first_hash_int = int.from_bytes(first_hash, byteorder='big')
-
-        # Then hash the result with w5
-        msg = self.signing_adapter.pedersen_hash([first_hash_int, w5])
-
-        return msg
-
-    def to_big_int(self, str_val: str) -> int:
-        """Convert a string to a big integer, handling hex and decimal formats."""
-        return int(str_val[2:], 16) % FIELD_PRIME if str_val.startswith('0x') else int(str_val, 10) % FIELD_PRIME
-
-    def hex_to_big_integer(self, hex_str: str) -> int:
-        """
-        Convert a hex string to a big integer.
-
-        Args:
-            hex_str: Hex string (with or without 0x prefix)
-
-        Returns:
-            int: The big integer value
-        """
-        if hex_str.startswith('0x'):
-            hex_str = hex_str[2:]
-        return int(hex_str, 16)
-
-    def get_random_client_id(self) -> str:
-        """
-        Generate a client ID using nanosecond timestamp.
-
-        Returns:
-            str: Client ID string based on current nanosecond timestamp
-        """
-        # Equivalent to Go: nanoTimestamp := time.Now().UnixNano()
-        # return strconv.FormatInt(nanoTimestamp, 10)
-        nano_timestamp = time.time_ns()
-        return str(nano_timestamp)
+        except aiohttp.ClientError as e:
+            raise ValueError(f"HTTP request failed: {str(e)}")
