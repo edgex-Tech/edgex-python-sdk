@@ -264,6 +264,22 @@ class Client:
             data=data,
         )
 
+    async def get_orders_by_id(self, order_id_list: List[str]) -> Dict[str, Any]:
+        query_params = {
+            "accountId": str(self.async_client.get_account_id()),
+            "orderIdList": ",".join(order_id_list),
+        }
+        return await self.async_client.make_authenticated_request(
+            method="GET", path="/api/v2/private/order/getOrderById", params=query_params)
+
+    async def get_orders_by_client_order_id(self, client_order_id_list: List[str]) -> Dict[str, Any]:
+        query_params = {
+            "accountId": str(self.async_client.get_account_id()),
+            "clientOrderIdList": ",".join(client_order_id_list),
+        }
+        return await self.async_client.make_authenticated_request(
+            method="GET", path="/api/v2/private/order/getOrderByClientOrderId", params=query_params)
+
     async def get_max_order_size(self, contract_id: str, price: float) -> Dict[str, Any]:
         data = {
             "accountId": str(self.async_client.get_account_id()),

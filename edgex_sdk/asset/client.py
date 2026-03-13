@@ -35,6 +35,16 @@ class GetWithdrawSignInfoParams:
         self.amount = amount
 
 
+class CreateCrossWithdrawParams:
+    def __init__(self, coin_id: str, amount: str, chain_id: str,
+                 target_address: str = "", fee: str = ""):
+        self.coin_id = coin_id
+        self.amount = amount
+        self.chain_id = chain_id
+        self.target_address = target_address
+        self.fee = fee
+
+
 class Client:
     def __init__(self, async_client: AsyncClient):
         self.async_client = async_client
@@ -124,6 +134,104 @@ class Client:
 
         return await self.async_client.make_authenticated_request(
             method="POST", path="/api/v2/private/assets/createNormalWithdraw", data=data)
+
+    async def create_cross_withdraw(self, params: CreateCrossWithdrawParams, metadata: Dict[str, Any]) -> Dict[str, Any]:
+        coin = None
+        for coin_data in metadata.get("coinList", []):
+            if coin_data.get("coinId") == params.coin_id:
+                coin = coin_data
+                break
+        if not coin:
+            raise ValueError(f"coin not found: {params.coin_id}")
+
+        if not self.async_client.wallet_pri_key:
+            raise ValueError("wallet private key is required for v2 EIP-712 cross withdrawal signing")
+
+        # Resolve chain and token
+        chain_id = params.chain_id
+        multi_chain = metadata.get("multiChain", {})
+        token_address = ""
+        for chain in multi_chain.get("chainList", []):
+            if (chain.get("chainId") or "").strip() == chain_id:
+                for token in chain.get("tokenList", []):
+                    addr = (token.get("tokenAddress") or "").strip()
+                    if addr:
+                        token_address = addr
+                        break
+                break
+        if not token_address:
+            raise ValueError(f"no token found for chainId: {chain_id}")
+
+        # Get fee from sign info
+        fee = params.fee
+        if not fee:
+            sign_info = await self.get_withdraw_sign_info(
+                GetWithdrawSignInfoParams(chain_id=chain_id, token_address=token_address, amount=params.amount))
+            fee_data = sign_info.get("data", {})
+            fee = (fee_data.get("fee") or "0").strip() if fee_data else "0"
+
+        account_id = str(self.async_client.get_account_id())
+        client_id = self.async_client.get_random_client_id()
+        nonce = self.async_client.calc_nonce(client_id)
+
+        l2_expire_time = int(time.time() * 1000) + (14 * 24 * 60 * 60 * 1000)
+        expiration_timestamp_seconds = l2_expire_time // 1000
+
+        coin_resolution = self.async_client.parse_resolution(coin.get("resolution", ""))
+        amount_dm = Decimal(params.amount)
+        amount_int = str(int(amount_dm * coin_resolution))
+        fee_dm = Decimal(fee)
+        fee_int = str(int(fee_dm * coin_resolution))
+
+        global_data = metadata.get("global", {})
+        domain_chain_id = (global_data.get("chainId") or global_data.get("nativeChainId") or "").strip()
+        verifying_contract = (global_data.get("contractAddress") or "").strip()
+        if not domain_chain_id:
+            raise ValueError("metadata.global.chainId/nativeChainId is required")
+        if not verifying_contract:
+            raise ValueError("metadata.global.contractAddress is required")
+
+        signer = self.async_client.resolve_wallet_signer_address()
+        target_address = params.target_address or signer
+        domain = build_eip712_domain("EdgeX", "1", domain_chain_id, verifying_contract)
+
+        typed_data = {
+            "types": {
+                "EIP712Domain": EIP712_DOMAIN_TYPE,
+                "WithdrawalParams": WITHDRAWAL_PARAMS_TYPE,
+            },
+            "primaryType": "WithdrawalParams",
+            "domain": domain,
+            "message": {
+                "from": account_id,
+                "toAddress": signer,
+                "amount": amount_int,
+                "feeAmount": fee_int,
+                "nonce": str(nonce),
+                "expirationTimestamp": str(expiration_timestamp_seconds),
+                "signer": signer,
+            },
+        }
+
+        l2_signature = self.async_client.sign_typed_data_with_wallet_key(typed_data)
+
+        data = {
+            "accountId": account_id,
+            "coinId": params.coin_id,
+            "amount": params.amount,
+            "ethAddress": signer,
+            "targetAddress": target_address,
+            "clientWithdrawId": client_id,
+            "fee": fee,
+            "signature": l2_signature,
+            "signer": signer,
+            "nonce": nonce,
+            "l2ExpireTime": str(l2_expire_time),
+            "chainId": chain_id,
+        }
+
+        return await self.async_client.make_authenticated_request(
+            method="POST", path="/api/v2/private/assets/createCrossWithdraw", data=data)
 
     async def get_withdraw_sign_info(self, params: GetWithdrawSignInfoParams) -> Dict[str, Any]:
         query_params = {

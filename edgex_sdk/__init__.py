@@ -16,11 +16,14 @@ from .transfer.client import (
     GetTransferInByIdParams,
     GetWithdrawAvailableAmountParams,
 )
-from .asset.client import CreateWithdrawalParams, GetWithdrawSignInfoParams
+from .asset.client import CreateWithdrawalParams, GetWithdrawSignInfoParams, CreateCrossWithdrawParams
 from .account.client import (
     GetPositionTransactionPageParams,
     GetCollateralTransactionPageParams,
     GetPositionOrdersParams,
+    GetPositionTermPageParams,
+    GetAccountAssetSnapshotPageParams,
+    GetAccountPageParams,
 )
 from .quote.client import (
     KlineType,
@@ -48,9 +51,13 @@ __all__ = [
     "GetWithdrawAvailableAmountParams",
     "CreateWithdrawalParams",
     "GetWithdrawSignInfoParams",
+    "CreateCrossWithdrawParams",
     "GetPositionTransactionPageParams",
     "GetCollateralTransactionPageParams",
     "GetPositionOrdersParams",
+    "GetPositionTermPageParams",
+    "GetAccountAssetSnapshotPageParams",
+    "GetAccountPageParams",
     "KlineType",
     "PriceType",
     "GetKLineParams",
