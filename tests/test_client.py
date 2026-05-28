@@ -4,7 +4,7 @@ Unit tests for the main client.
 
 import unittest
 import asyncio
-from unittest.mock import patch, MagicMock, AsyncMock
+from unittest.mock import MagicMock, AsyncMock
 
 from edgex_sdk.client import Client
 from edgex_sdk.order.types import OrderSide, OrderType, CreateOrderParams
@@ -17,20 +17,17 @@ class TestClient(unittest.TestCase):
         """Set up test fixtures."""
         self.base_url = "https://testnet.edgex.exchange"
         self.account_id = 12345
-        self.stark_private_key = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+        self.trading_private_key = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 
-        # Create a client with mocked session
-        with patch('edgex_sdk.client.requests.Session') as mock_session:
-            self.mock_session = mock_session.return_value
-            self.client = Client(
-                base_url=self.base_url,
-                account_id=self.account_id,
-                stark_private_key=self.stark_private_key
-            )
+        self.client = Client(
+            base_url=self.base_url,
+            account_id=self.account_id,
+            trading_private_key=self.trading_private_key
+        )
 
     def test_init(self):
         """Test client initialization."""
-        self.assertIsNotNone(self.client.internal_client)
+        self.assertIsNotNone(self.client.async_client)
         self.assertIsNotNone(self.client.order)
         self.assertIsNotNone(self.client.metadata)
         self.assertIsNotNone(self.client.account)
@@ -160,52 +157,22 @@ class TestClient(unittest.TestCase):
 
     def test_create_market_order(self):
         """Test create_market_order method."""
-        # Mock the get_metadata method
-        self.client.get_metadata = AsyncMock(return_value={
-            "data": {
-                "contractList": [
-                    {
-                        "contractId": "BTC-USDT",
-                        "tickSize": "0.01"
-                    }
-                ]
-            }
-        })
-
-        # Mock the get_24_hour_quote method
-        self.client.get_24_hour_quote = AsyncMock(return_value={
-            "data": [
-                {
-                    "oraclePrice": "30000"
-                }
-            ]
-        })
-
         # Mock the create_order method
         self.client.create_order = AsyncMock(return_value={"code": "SUCCESS", "data": {"orderId": "123"}})
 
         # Call the method
-        result = asyncio.run(self.client.create_order(
-            CreateOrderParams(
-                contract_id="BTC-USDT",
-                size="0.001",
-                price="0",  # Market order price should be ignored
-                side=OrderSide.BUY,
-                type=OrderType.MARKET
-            )
+        result = asyncio.run(self.client.create_market_order(
+            contract_id="BTC-USDT",
+            size="0.001",
+            side=OrderSide.BUY
         ))
-
-        # Check that get_metadata was called
-        self.client.get_metadata.assert_called_once()
-
-        # Check that get_24_hour_quote was called with the correct arguments
-        self.client.get_24_hour_quote.assert_called_once_with("BTC-USDT")
 
         # Check that create_order was called with the correct arguments
         self.client.create_order.assert_called_once()
         args = self.client.create_order.call_args[0][0]
         self.assertEqual(args.contract_id, "BTC-USDT")
         self.assertEqual(args.size, "0.001")
+        self.assertEqual(args.price, "0")
         self.assertEqual(args.side, OrderSide.BUY)
         self.assertEqual(args.type, OrderType.MARKET)
 

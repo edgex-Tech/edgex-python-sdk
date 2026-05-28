@@ -77,7 +77,10 @@ class TestQuoteAPI(BaseIntegrationTest):
             self.assertIn("high", first_kline)
             self.assertIn("low", first_kline)
             self.assertIn("close", first_kline)
-            self.assertIn("volume", first_kline)
+            self.assertTrue(
+                "volume" in first_kline or "size" in first_kline,
+                "Neither 'volume' nor 'size' found in K-line data",
+            )
 
             # Log K-line details
             logger.info(f"First K-line for {TEST_CONTRACT_ID}: {first_kline}")

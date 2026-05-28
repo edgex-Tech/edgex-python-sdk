@@ -24,10 +24,10 @@ class Client:
         api_key: str = "",
         api_passphrase: str = "",
         api_secret: str = "",
-        trading_pri_key: str = "",
-        wallet_pri_key: str = "",
-        trading_addr: str = "",
-        wallet_addr: str = "",
+        trading_private_key: str = "",
+        wallet_private_key: str = "",
+        trading_address: str = "",
+        wallet_address: str = "",
         auth_header_key: str = DEFAULT_HEADER_KEY,
         timeout: float = 30.0,
     ):
@@ -37,10 +37,10 @@ class Client:
             api_key=api_key,
             api_passphrase=api_passphrase,
             api_secret=api_secret,
-            trading_pri_key=trading_pri_key,
-            wallet_pri_key=wallet_pri_key,
-            trading_addr=trading_addr,
-            wallet_addr=wallet_addr,
+            trading_private_key=trading_private_key,
+            wallet_private_key=wallet_private_key,
+            trading_address=trading_address,
+            wallet_address=wallet_address,
             auth_header_key=auth_header_key,
             timeout=timeout,
         )
@@ -93,6 +93,53 @@ class Client:
 
         l2_price_decimal = Decimal(l2_price)
         return await self.order.create_order(params, metadata.get("data", {}), l2_price_decimal)
+
+    async def create_limit_order(
+        self,
+        contract_id: str,
+        size: str,
+        price: str,
+        side: OrderSide,
+        time_in_force: str = "",
+        client_order_id: str = "",
+        expire_time: int = 0,
+        reduce_only: bool = False,
+    ) -> Dict[str, Any]:
+        return await self.create_order(
+            CreateOrderParams(
+                contract_id=contract_id,
+                price=price,
+                size=size,
+                type=OrderType.LIMIT,
+                side=side,
+                time_in_force=time_in_force,
+                client_order_id=client_order_id,
+                expire_time=expire_time,
+                reduce_only=reduce_only,
+            )
+        )
+
+    async def create_market_order(
+        self,
+        contract_id: str,
+        size: str,
+        side: OrderSide,
+        client_order_id: str = "",
+        expire_time: int = 0,
+        reduce_only: bool = False,
+    ) -> Dict[str, Any]:
+        return await self.create_order(
+            CreateOrderParams(
+                contract_id=contract_id,
+                price="0",
+                size=size,
+                type=OrderType.MARKET,
+                side=side,
+                client_order_id=client_order_id,
+                expire_time=expire_time,
+                reduce_only=reduce_only,
+            )
+        )
 
     async def create_transfer_out(self, params) -> Dict[str, Any]:
         metadata = await self.get_metadata()

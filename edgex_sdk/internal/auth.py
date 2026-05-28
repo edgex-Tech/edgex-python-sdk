@@ -7,7 +7,6 @@ from typing import Dict, Any, Optional, Union, List
 API_VERSION_V1 = "v1"
 API_VERSION_V2 = "v2"
 
-SIGNING_METHOD_STARK = "stark"
 SIGNING_METHOD_HMAC = "hmac"
 
 DEFAULT_HEADER_KEY = "edgeX"

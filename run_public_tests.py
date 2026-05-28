@@ -23,8 +23,10 @@ os.environ["EDGEX_BASE_URL"] = "https://pro.edgex.exchange"
 # Use the correct WebSocket URL
 os.environ["EDGEX_WS_URL"] = "wss://quote.edgex.exchange"
 os.environ["EDGEX_ACCOUNT_ID"] = "0"  # Dummy value
-os.environ["EDGEX_STARK_PRIVATE_KEY"] = "0" * 64  # Dummy value
-os.environ["EDGEX_SIGNING_ADAPTER"] = "mock"  # Use mock adapter
+os.environ["EDGEX_TRADING_PRIVATE_KEY"] = "0" * 64  # Dummy value
+os.environ["EDGEX_API_KEY"] = "dummy-api-key"
+os.environ["EDGEX_API_PASSPHRASE"] = "dummy-passphrase"
+os.environ["EDGEX_API_SECRET"] = "dummy-secret"
 os.environ["EDGEX_PUBLIC_ONLY"] = "true"  # Flag to indicate public endpoints only
 
 # Log information

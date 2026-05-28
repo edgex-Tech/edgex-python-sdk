@@ -39,8 +39,8 @@ logger = logging.getLogger(__name__)
 
 class EdgeXTrader:
     """Example trader using the EdgeX Python SDK."""
-    
-    def __init__(self, base_url: str, ws_url: str, account_id: int, stark_private_key: str):
+
+    def __init__(self, base_url: str, ws_url: str, account_id: int, trading_private_key: str):
         """
         Initialize the trader.
         
@@ -48,18 +48,20 @@ class EdgeXTrader:
             base_url: Base URL for API endpoints
             ws_url: Base URL for WebSocket endpoints
             account_id: Account ID for authentication
-            stark_private_key: Stark private key for signing
+            trading_private_key: Trading private key for signing
         """
         self.client = Client(
             base_url=base_url,
             account_id=account_id,
-            stark_private_key=stark_private_key
+            trading_private_key=trading_private_key
         )
         
         self.ws_manager = WebSocketManager(
             base_url=ws_url,
             account_id=account_id,
-            stark_pri_key=stark_private_key
+            api_key="",
+            api_passphrase="",
+            api_secret=""
         )
         
         self.metadata = None
@@ -608,14 +610,14 @@ async def main():
     base_url = os.getenv("EDGEX_BASE_URL", "https://testnet.edgex.exchange")
     ws_url = os.getenv("EDGEX_WS_URL", "wss://quote-testnet.edgex.exchange")
     account_id = int(os.getenv("EDGEX_ACCOUNT_ID", "12345"))
-    stark_private_key = os.getenv("EDGEX_STARK_PRIVATE_KEY", "your-stark-private-key")
+    trading_private_key = os.getenv("EDGEX_TRADING_PRIVATE_KEY", "your-trading-private-key")
     
     # Create trader
     trader = EdgeXTrader(
         base_url=base_url,
         ws_url=ws_url,
         account_id=account_id,
-        stark_private_key=stark_private_key
+        trading_private_key=trading_private_key
     )
     
     # Initialize trader

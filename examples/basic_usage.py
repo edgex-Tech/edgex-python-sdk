@@ -35,13 +35,13 @@ async def main():
     # Load configuration from environment variables
     base_url = os.getenv("EDGEX_BASE_URL", "https://testnet.edgex.exchange")
     account_id = int(os.getenv("EDGEX_ACCOUNT_ID", "your_account_id"))
-    stark_private_key = os.getenv("EDGEX_STARK_PRIVATE_KEY", "your_private_key")
+    trading_private_key = os.getenv("EDGEX_TRADING_PRIVATE_KEY", "your_private_key")
 
     # Create a new client
     client = Client(
         base_url=base_url,
         account_id=account_id,
-        stark_private_key=stark_private_key
+        trading_private_key=trading_private_key
     )
 
     # Get server time
@@ -176,7 +176,9 @@ async def main():
     ws_manager = WebSocketManager(
         base_url=ws_url,
         account_id=account_id,
-        stark_pri_key=stark_private_key
+        api_key="",
+        api_passphrase="",
+        api_secret=""
     )
 
     # Define message handlers

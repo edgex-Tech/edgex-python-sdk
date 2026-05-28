@@ -7,7 +7,16 @@ import os
 from typing import Dict, Any, Optional
 
 from edgex_sdk import Client, WebSocketManager
-from .config import BASE_URL, WS_URL, ACCOUNT_ID, STARK_PRIVATE_KEY, STARKEX_SIGNING_ADAPTER, check_env_vars
+from .config import (
+    BASE_URL,
+    WS_URL,
+    ACCOUNT_ID,
+    TRADING_PRIVATE_KEY,
+    API_KEY,
+    API_PASSPHRASE,
+    API_SECRET,
+    check_env_vars,
+)
 
 # Configure logging
 logging.basicConfig(
@@ -31,8 +40,7 @@ class BaseIntegrationTest(unittest.TestCase):
                 f"Skipping integration tests because the following environment variables are not set: {', '.join(missing_vars)}"
             )
 
-        # Log which signing adapter is being used
-        logger.info("Using StarkEx signing adapter (default)")
+        logger.info("Using EIP-712 trading key signing")
 
         # Store test data
         cls.test_data = {}
@@ -64,14 +72,19 @@ class BaseIntegrationTest(unittest.TestCase):
         self.client = Client(
             base_url=BASE_URL,
             account_id=ACCOUNT_ID,
-            stark_private_key=STARK_PRIVATE_KEY
+            api_key=API_KEY,
+            api_passphrase=API_PASSPHRASE,
+            api_secret=API_SECRET,
+            trading_private_key=TRADING_PRIVATE_KEY,
         )
 
         # Create WebSocket manager for each test
         self.ws_manager = WebSocketManager(
             base_url=WS_URL,
             account_id=ACCOUNT_ID,
-            stark_pri_key=STARK_PRIVATE_KEY
+            api_key=API_KEY,
+            api_passphrase=API_PASSPHRASE,
+            api_secret=API_SECRET,
         )
 
     def tearDown(self):

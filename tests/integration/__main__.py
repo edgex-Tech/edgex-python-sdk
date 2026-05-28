@@ -14,12 +14,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Set the mock signing adapter in the environment
-# os.environ["EDGEX_SIGNING_ADAPTER"] = "mock"
-
-# Log information about the mock tests
-logger.info("Running integration tests with the mock signing adapter.")
-logger.info("This means that cryptographic operations are not performed using the actual Stark curve.")
+logger.info("Running integration tests for the v2 EIP-712 signing path.")
+logger.info("This test suite exercises the current SDK request and signing flow.")
 
 # Discover and run tests
 test_loader = unittest.TestLoader()
