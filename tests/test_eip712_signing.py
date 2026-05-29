@@ -38,8 +38,9 @@ class TestEip712Signing(unittest.TestCase):
 
     def test_sign_typed_data(self):
         signature = sign_typed_data(self.private_key_hex, self.typed_data)
-        self.assertTrue(signature.startswith("0x"))
-        self.assertEqual(len(signature), 132)
+        self.assertFalse(signature.startswith("0x"))
+        self.assertEqual(len(signature), 130)
+        int(signature, 16)
 
 
 if __name__ == "__main__":

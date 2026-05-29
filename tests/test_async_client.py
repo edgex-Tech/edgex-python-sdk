@@ -50,8 +50,9 @@ class TestAsyncClient(unittest.TestCase):
     def test_sign_typed_data_with_trading_key(self):
         signature = self.client.sign_typed_data_with_trading_key(self.typed_data)
 
-        self.assertTrue(signature.startswith("0x"))
-        self.assertEqual(len(signature), 132)
+        self.assertFalse(signature.startswith("0x"))
+        self.assertEqual(len(signature), 130)
+        int(signature, 16)
 
     def test_sign_typed_data_with_trading_key_requires_key(self):
         client = AsyncClient(

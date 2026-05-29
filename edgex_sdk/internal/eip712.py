@@ -32,8 +32,7 @@ def sign_typed_data(private_key_hex: str, typed_data: Dict[str, Any]) -> str:
     signable = encode_typed_data(full_message=full_message)
 
     signed = Account.sign_message(signable, private_key_hex)
-    signature = signed.signature.hex()
-    return signature if signature.startswith("0x") else "0x" + signature
+    return signed.signature.hex()
 
 
 def build_eip712_domain(
