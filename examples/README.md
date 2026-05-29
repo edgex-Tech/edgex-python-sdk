@@ -24,7 +24,7 @@ The examples use the following environment variables:
 - `EDGEX_BASE_URL`: Base URL for HTTP API endpoints (e.g., "https://pro.edgex.exchange" for production, "https://testnet.edgex.exchange" for testnet)
 - `EDGEX_WS_URL`: Base URL for WebSocket endpoints (e.g., "wss://quote.edgex.exchange" for production, "wss://quote-testnet.edgex.exchange" for testnet)
 - `EDGEX_ACCOUNT_ID`: Your account ID
-- `EDGEX_STARK_PRIVATE_KEY`: Your stark private key
+- `EDGEX_TRADING_PRIVATE_KEY`: Your trading private key
 
 You can set these variables in your environment or create a `.env` file in the examples directory:
 
@@ -32,7 +32,7 @@ You can set these variables in your environment or create a `.env` file in the e
 EDGEX_BASE_URL=https://pro.edgex.exchange  # Use https://testnet.edgex.exchange for testnet
 EDGEX_WS_URL=wss://quote.edgex.exchange    # Use wss://quote-testnet.edgex.exchange for testnet
 EDGEX_ACCOUNT_ID=12345
-EDGEX_STARK_PRIVATE_KEY=your-stark-private-key
+EDGEX_TRADING_PRIVATE_KEY=your-trading-private-key
 ```
 
 ## Examples

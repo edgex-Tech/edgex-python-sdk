@@ -75,7 +75,7 @@ class Client:
         if not coin:
             raise ValueError(f"coin not found: {params.coin_id}")
 
-        if not self.async_client.wallet_pri_key:
+        if not self.async_client.wallet_private_key:
             raise ValueError("wallet private key is required for v2 EIP-712 withdrawal signing")
 
         account_id = str(self.async_client.get_account_id())
@@ -144,7 +144,7 @@ class Client:
         if not coin:
             raise ValueError(f"coin not found: {params.coin_id}")
 
-        if not self.async_client.wallet_pri_key:
+        if not self.async_client.wallet_private_key:
             raise ValueError("wallet private key is required for v2 EIP-712 cross withdrawal signing")
 
         # Resolve chain and token

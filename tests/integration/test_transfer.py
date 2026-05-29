@@ -163,7 +163,6 @@ class TestTransferAPI(BaseIntegrationTest):
             coin_id="1000",
             amount="10",
             receiver_account_id="675524849547870757",
-            receiver_l2_key="0x0711bcc79aecf8533e94d9041d02159d45d239fa78f6bc2b1f2efede31e321b9",
             transfer_reason=TransferReason.USER_TRANSFER
         )
 
@@ -172,11 +171,13 @@ class TestTransferAPI(BaseIntegrationTest):
         self.assertIsInstance(params.coin_id, str)
         self.assertIsInstance(params.amount, str)
         self.assertIsInstance(params.receiver_account_id, str)
-        self.assertIsInstance(params.receiver_l2_key, str)
         self.assertEqual(params.transfer_reason, TransferReason.USER_TRANSFER)
 
         # Test optional parameters
-        self.assertIsNone(params.expire_time)
+        self.assertEqual(params.l2_expire_time, "")
+        self.assertEqual(params.l2_nonce, "")
+        self.assertEqual(params.l2_signature, "")
+        self.assertEqual(params.signer, "")
         self.assertIsNone(params.extra_type)
         self.assertIsNone(params.extra_data_json)
 

@@ -25,12 +25,12 @@ if not env_status["all_set"]:
     logger.error("Please set these environment variables and try again.")
     sys.exit(1)
 
-# Set the StarkEx signing adapter in the environment
-# os.environ["EDGEX_SIGNING_ADAPTER"] = "starkex"
+# Legacy signing-adapter toggle is unused in v2.
+# os.environ["EDGEX_SIGNING_ADAPTER"] = "eip712"
 
-# Log information about the signing adapter
-logger.info("Running integration tests with the StarkEx signing adapter.")
-logger.info("This means that cryptographic operations are performed using the actual Stark curve implementation.")
+# Log information about the signing path
+logger.info("Running integration tests with the v2 EIP-712 signing path.")
+logger.info("This means that cryptographic operations are performed using the configured trading and wallet keys.")
 
 # Run the integration tests as a module
 result = subprocess.run([sys.executable, "-m", "tests.integration"])

@@ -29,8 +29,9 @@ class TestPublicWebSocketAPI(BasePublicEndpointTest):
         self.ws_manager = WebSocketManager(
             base_url=WS_URL,
             account_id=0,  # Dummy value
-            stark_pri_key="0" * 64,  # Dummy value
-            signing_adapter=self.client.internal_client.signing_adapter
+            api_key="",
+            api_passphrase="",
+            api_secret=""
         )
 
         # Store received messages

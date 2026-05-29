@@ -4,8 +4,6 @@ import os
 from typing import Dict, Any
 from dotenv import load_dotenv
 
-from edgex_sdk.internal.starkex_signing_adapter import StarkExSigningAdapter
-
 # Load environment variables from .env file
 load_dotenv()
 
@@ -13,15 +11,15 @@ load_dotenv()
 BASE_URL = os.getenv("EDGEX_BASE_URL", "https://testnet.edgex.exchange")
 WS_URL = os.getenv("EDGEX_WS_URL", "wss://quote-testnet.edgex.exchange")
 ACCOUNT_ID = int(os.getenv("EDGEX_ACCOUNT_ID", "0"))
-STARK_PRIVATE_KEY = os.getenv("EDGEX_STARK_PRIVATE_KEY", "")
+TRADING_PRIVATE_KEY = os.getenv("EDGEX_TRADING_PRIVATE_KEY", "")
+API_KEY = os.getenv("EDGEX_API_KEY", "")
+API_PASSPHRASE = os.getenv("EDGEX_API_PASSPHRASE", "")
+API_SECRET = os.getenv("EDGEX_API_SECRET", "")
 
 # Test data
-TEST_CONTRACT_ID = "10000004"  # Contract ID provided
+TEST_CONTRACT_ID = os.getenv("EDGEX_TEST_CONTRACT_ID", "30000001")
 TEST_ORDER_SIZE = "0.001"
 TEST_ORDER_PRICE = "30000"
-
-# Create signing adapter for testing
-STARKEX_SIGNING_ADAPTER = StarkExSigningAdapter()
 
 # Check if required environment variables are set
 def check_env_vars() -> Dict[str, Any]:
@@ -35,7 +33,10 @@ def check_env_vars() -> Dict[str, Any]:
         "EDGEX_BASE_URL": BASE_URL,
         "EDGEX_WS_URL": WS_URL,
         "EDGEX_ACCOUNT_ID": ACCOUNT_ID,
-        "EDGEX_STARK_PRIVATE_KEY": STARK_PRIVATE_KEY
+        "EDGEX_TRADING_PRIVATE_KEY": TRADING_PRIVATE_KEY,
+        "EDGEX_API_KEY": API_KEY,
+        "EDGEX_API_PASSPHRASE": API_PASSPHRASE,
+        "EDGEX_API_SECRET": API_SECRET,
     }
 
     missing_vars = []

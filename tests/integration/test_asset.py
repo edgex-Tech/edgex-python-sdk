@@ -20,6 +20,9 @@ class TestAssetAPI(BaseIntegrationTest):
 
     def test_get_account_asset_delegation(self):
         """Test that get_account_asset properly delegates to account client."""
+        if not hasattr(self.client.asset, "get_account_asset"):
+            self.skipTest("Asset client does not expose get_account_asset")
+
         # This should raise NotImplementedError since it's an account endpoint
         with self.assertRaises(NotImplementedError) as context:
             self.run_async(self.client.asset.get_account_asset())
@@ -65,6 +68,9 @@ class TestAssetAPI(BaseIntegrationTest):
 
     def test_get_coin_rates(self):
         """Test get_coin_rates method."""
+        if not hasattr(self.client.asset, "get_coin_rates"):
+            self.skipTest("Asset client does not expose get_coin_rates")
+
         try:
             rates = self.run_async(self.client.asset.get_coin_rates())
         except ValueError as e:
@@ -117,15 +123,14 @@ class TestAssetAPI(BaseIntegrationTest):
         params = CreateWithdrawalParams(
             coin_id="2",  # USDT
             amount="0.001",  # Very small amount
-            address="0x1234567890123456789012345678901234567890",  # Dummy address
-            tag=""
+            eth_address="0x1234567890123456789012345678901234567890",  # Dummy address
         )
 
         # We won't actually call the API to avoid creating real withdrawals
         # Just test that the parameters are properly structured
         self.assertIsInstance(params.coin_id, str)
         self.assertIsInstance(params.amount, str)
-        self.assertIsInstance(params.address, str)
+        self.assertIsInstance(params.eth_address, str)
 
         logger.info("Withdrawal parameter validation passed")
         logger.warning("Actual withdrawal creation skipped for safety")

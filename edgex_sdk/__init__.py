@@ -15,8 +15,15 @@ from .transfer.client import (
     GetTransferOutByIdParams,
     GetTransferInByIdParams,
     GetWithdrawAvailableAmountParams,
+    GetTransferOutPageParams,
+    GetTransferInPageParams,
 )
-from .asset.client import CreateWithdrawalParams, GetWithdrawSignInfoParams, CreateCrossWithdrawParams
+from .asset.client import (
+    GetAssetOrdersParams,
+    CreateWithdrawalParams,
+    GetWithdrawSignInfoParams,
+    CreateCrossWithdrawParams,
+)
 from .account.client import (
     GetPositionTransactionPageParams,
     GetCollateralTransactionPageParams,
@@ -49,6 +56,9 @@ __all__ = [
     "GetTransferOutByIdParams",
     "GetTransferInByIdParams",
     "GetWithdrawAvailableAmountParams",
+    "GetTransferOutPageParams",
+    "GetTransferInPageParams",
+    "GetAssetOrdersParams",
     "CreateWithdrawalParams",
     "GetWithdrawSignInfoParams",
     "CreateCrossWithdrawParams",

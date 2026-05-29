@@ -5,12 +5,10 @@ import logging
 
 from edgex_sdk import GetKLineParams, GetOrderBookDepthParams, GetMultiContractKLineParams, KlineType
 from tests.integration.public.base_test import BasePublicEndpointTest
+from tests.integration.config import TEST_CONTRACT_ID
 
 # Configure logging
 logger = logging.getLogger(__name__)
-
-# Test contract ID
-TEST_CONTRACT_ID = "10000004"  # Contract ID provided
 
 
 class TestPublicQuoteAPI(BasePublicEndpointTest):

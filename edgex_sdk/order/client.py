@@ -47,7 +47,7 @@ class Client:
 
         contract, quote_coin = self._resolve_contract_and_quote_coin(metadata, params.contract_id)
 
-        if not self.async_client.trading_pri_key:
+        if not self.async_client.trading_private_key:
             raise ValueError("trading private key is required for v2 EIP-712 order signing")
 
         size = Decimal(params.size)

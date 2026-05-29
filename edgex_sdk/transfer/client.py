@@ -148,7 +148,7 @@ class Client:
 
         l2_signature = (params.l2_signature or "").strip()
         if not l2_signature:
-            if not self.async_client.wallet_pri_key:
+            if not self.async_client.wallet_private_key:
                 raise ValueError("wallet private key is required for v2 EIP-712 transfer signing")
 
             signer = (params.signer or "").strip()

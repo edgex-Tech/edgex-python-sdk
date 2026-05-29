@@ -70,7 +70,7 @@ async def main():
     client = Client(
         base_url="https://pro.edgex.exchange",  # Use https://testnet.edgex.exchange for testnet
         account_id=12345,  # Your account ID
-        stark_private_key="your-stark-private-key"  # Your private key
+        trading_private_key="your-trading-private-key"  # Your trading private key
     )
 
     # Get server time
@@ -190,7 +190,9 @@ async def main():
     ws_manager = WebSocketManager(
         base_url="wss://quote.edgex.exchange",  # Use wss://quote-testnet.edgex.exchange for testnet
         account_id=12345,
-        stark_pri_key="your-stark-private-key"
+        api_key="",
+        api_passphrase="",
+        api_secret=""
     )
 
     # Define message handlers
@@ -219,43 +221,9 @@ async def main():
 asyncio.run(main())
 ```
 
-## Signing Adapters
+## Signing
 
-The SDK provides a flexible signing mechanism through signing adapters. **StarkExSigningAdapter is used by default**, so you don't need to explicitly create one:
-
-```python
-from edgex_sdk import Client
-
-# Create a client (uses StarkExSigningAdapter by default)
-client = Client(
-    base_url="https://pro.edgex.exchange",  # Use https://testnet.edgex.exchange for testnet
-    account_id=12345,
-    stark_private_key="your-stark-private-key"
-)
-```
-
-If you need to use a custom signing adapter, you can still provide one:
-
-```python
-from edgex_sdk import Client, StarkExSigningAdapter
-
-# Create a custom signing adapter (optional)
-signing_adapter = StarkExSigningAdapter()
-
-# Create a client with a custom signing adapter
-client = Client(
-    base_url="https://pro.edgex.exchange",  # Use https://testnet.edgex.exchange for testnet
-    account_id=12345,
-    stark_private_key="your-stark-private-key",
-    signing_adapter=signing_adapter
-)
-```
-
-The SDK includes the following signing adapters:
-
-- **StarkExSigningAdapter** (default): Full implementation using StarkWare cryptographic operations for production use
-
-You can also create your own signing adapter by implementing the `SigningAdapter` interface if you need custom cryptographic operations.
+The v2 SDK uses the trading private key for EIP-712 order signing and the wallet private key for withdrawal / transfer flows. There is no StarkEx signing adapter in the v2 path.
 
 ## Error Handling
 
@@ -269,7 +237,7 @@ async def main():
     client = Client(
         base_url="https://pro.edgex.exchange",  # Use https://testnet.edgex.exchange for testnet
         account_id=12345,
-        stark_private_key="your-stark-private-key"
+        trading_private_key="your-trading-private-key"
     )
 
     try:
@@ -310,7 +278,7 @@ async def main():
     client = Client(
         base_url="https://pro.edgex.exchange",  # Use https://testnet.edgex.exchange for testnet
         account_id=12345,
-        stark_private_key="your-stark-private-key"
+        trading_private_key="your-trading-private-key"
     )
 
     # Create pagination parameters
@@ -465,7 +433,7 @@ The SDK includes comprehensive test coverage with multiple test suites:
 ### Unit Tests
 ```bash
 # Run unit tests (no API credentials required)
-python -m pytest tests/test_client.py tests/test_starkex_signing_adapter.py -v
+python -m pytest tests/test_client.py tests/test_eip712_signing.py -v
 ```
 
 ### Public API Tests
@@ -505,10 +473,7 @@ EDGEX_WS_URL=wss://quote.edgex.exchange    # Use wss://quote-testnet.edgex.excha
 
 # Account Credentials
 EDGEX_ACCOUNT_ID=12345
-EDGEX_STARK_PRIVATE_KEY=your-stark-private-key
-
-# Signing Configuration
-EDGEX_SIGNING_ADAPTER=starkex
+EDGEX_TRADING_PRIVATE_KEY=your-trading-private-key
 ```
 
 Then load them in your code:
@@ -524,7 +489,7 @@ load_dotenv()
 client = Client(
     base_url=os.getenv("EDGEX_BASE_URL"),
     account_id=int(os.getenv("EDGEX_ACCOUNT_ID")),
-    stark_private_key=os.getenv("EDGEX_STARK_PRIVATE_KEY")
+    trading_private_key=os.getenv("EDGEX_TRADING_PRIVATE_KEY")
 )
 ```
 

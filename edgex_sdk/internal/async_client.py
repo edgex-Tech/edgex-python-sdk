@@ -29,10 +29,10 @@ class AsyncClient:
         api_key: str = "",
         api_passphrase: str = "",
         api_secret: str = "",
-        trading_pri_key: str = "",
-        wallet_pri_key: str = "",
-        trading_addr: str = "",
-        wallet_addr: str = "",
+        trading_private_key: str = "",
+        wallet_private_key: str = "",
+        trading_address: str = "",
+        wallet_address: str = "",
         auth_header_key: str = DEFAULT_HEADER_KEY,
         timeout: float = 30.0,
         connector_limit: int = 100,
@@ -42,10 +42,10 @@ class AsyncClient:
         self.api_key = api_key
         self.api_passphrase = api_passphrase
         self.api_secret = api_secret
-        self.trading_pri_key = trading_pri_key
-        self.wallet_pri_key = wallet_pri_key
-        self.trading_addr = trading_addr
-        self.wallet_addr = wallet_addr
+        self.trading_private_key = trading_private_key
+        self.wallet_private_key = wallet_private_key
+        self.trading_address = trading_address
+        self.wallet_address = wallet_address
         self.auth_header_key = auth_header_key
 
         self._session: Optional[aiohttp.ClientSession] = None
@@ -107,30 +107,30 @@ class AsyncClient:
     # ── signer address helpers ──
 
     def resolve_trading_signer_address(self) -> str:
-        if self.trading_addr:
-            return self.trading_addr
-        if not self.trading_pri_key:
+        if self.trading_address:
+            return self.trading_address
+        if not self.trading_private_key:
             raise ValueError("trading private key is required to derive signer address")
-        self.trading_addr = derive_address_from_private_key(self.trading_pri_key)
-        return self.trading_addr
+        self.trading_address = derive_address_from_private_key(self.trading_private_key)
+        return self.trading_address
 
     def resolve_wallet_signer_address(self) -> str:
-        if self.wallet_addr:
-            return self.wallet_addr
-        if not self.wallet_pri_key:
+        if self.wallet_address:
+            return self.wallet_address
+        if not self.wallet_private_key:
             raise ValueError("wallet private key is required to derive signer address")
-        self.wallet_addr = derive_address_from_private_key(self.wallet_pri_key)
-        return self.wallet_addr
+        self.wallet_address = derive_address_from_private_key(self.wallet_private_key)
+        return self.wallet_address
 
     def sign_typed_data_with_trading_key(self, typed_data: Dict[str, Any]) -> str:
-        if not self.trading_pri_key:
+        if not self.trading_private_key:
             raise ValueError("trading private key is required for EIP-712 signing")
-        return sign_typed_data(self.trading_pri_key, typed_data)
+        return sign_typed_data(self.trading_private_key, typed_data)
 
     def sign_typed_data_with_wallet_key(self, typed_data: Dict[str, Any]) -> str:
-        if not self.wallet_pri_key:
+        if not self.wallet_private_key:
             raise ValueError("wallet private key is required for EIP-712 signing")
-        return sign_typed_data(self.wallet_pri_key, typed_data)
+        return sign_typed_data(self.wallet_private_key, typed_data)
 
     # ── nonce / client id ──
 

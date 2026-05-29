@@ -7,7 +7,6 @@ import os
 from typing import Dict, Any, Optional
 
 from edgex_sdk import Client
-from edgex_sdk.internal.starkex_signing_adapter import StarkExSigningAdapter
 from tests.integration.config import BASE_URL
 
 # Configure logging
@@ -45,17 +44,12 @@ class BasePublicEndpointTest(unittest.TestCase):
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
 
-        # Create a fresh client for each test method
-        # Create a StarkEx signing adapter
-        signing_adapter = StarkExSigningAdapter()
-
         # Create client with dummy values
-        # The account_id and stark_private_key won't be used for public endpoints
+        # The account_id and trading_private_key won't be used for public endpoints
         self.client = Client(
             base_url=BASE_URL,
             account_id=0,  # Dummy value
-            stark_private_key="0" * 64,  # Dummy value
-            signing_adapter=signing_adapter
+            trading_private_key="0" * 64,  # Dummy value
         )
 
     def tearDown(self):

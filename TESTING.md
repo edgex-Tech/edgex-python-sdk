@@ -6,9 +6,9 @@ This document provides an overview of the testing strategy for the EdgeX Python 
 
 - [Test Structure](#test-structure)
 - [Unit Tests](#unit-tests)
-  - [Signing Adapter Tests](#signing-adapter-tests)
+  - [EIP-712 Signing Tests](#eip-712-signing-tests)
   - [Client Tests](#client-tests)
-  - [Internal Client Tests](#internal-client-tests)
+  - [Async Client Tests](#async-client-tests)
 - [Integration Tests](#integration-tests)
   - [Account API Tests](#account-api-tests)
   - [Metadata API Tests](#metadata-api-tests)
@@ -36,29 +36,21 @@ The EdgeX Python SDK test suite is organized into two main categories:
 
 ## Unit Tests
 
-### Signing Adapter Tests
+### EIP-712 Signing Tests
 
-File: `tests/test_starkex_signing_adapter.py`
+File: `tests/test_eip712_signing.py`
 
-These tests verify the functionality of the StarkEx signing adapter, which is responsible for cryptographic operations using the Stark curve.
+These tests verify the v2 EIP-712 signing helpers used by order creation and signer address derivation.
 
 **Coverage:**
 
-- ✅ Sign and verify operations
-- ✅ Public key derivation
-- ✅ Error handling for invalid inputs
-- ✅ Edge cases (zero values, large values)
-- ✅ Signature verification with different messages and keys
+- ✅ Address derivation from private keys
+- ✅ Typed-data signing
+- ✅ Basic signature shape validation
 
 **Test Cases:**
-- `test_sign_and_verify`: Tests basic signing and verification
-- `test_sign_different_messages`: Ensures different messages produce different signatures
-- `test_sign_different_keys`: Ensures different keys produce different signatures
-- `test_verify_invalid_signature`: Tests rejection of invalid signatures
-- `test_verify_wrong_message`: Tests rejection when verifying with wrong message
-- `test_verify_wrong_public_key`: Tests rejection when verifying with wrong public key
-- `test_invalid_private_key`: Tests handling of invalid private keys
-- `test_invalid_message_hash`: Tests handling of invalid message hashes
+- `test_derive_address_from_private_key`: Tests address derivation from a v2 trading key
+- `test_sign_typed_data`: Tests typed-data signature generation
 
 ### Client Tests
 
@@ -76,11 +68,11 @@ These tests verify the functionality of the main client class, which serves as t
 - `test_init`: Tests client initialization with valid parameters
 - `test_init_invalid_params`: Tests client initialization with invalid parameters
 
-### Internal Client Tests
+### Async Client Tests
 
-File: `tests/test_internal_client.py`
+File: `tests/test_async_client.py`
 
-These tests verify the functionality of the internal client, which handles low-level API communication and signing.
+These tests verify the functionality of the async client helpers that handle low-level request preparation and signing helpers.
 
 **Coverage:**
 
@@ -90,10 +82,9 @@ These tests verify the functionality of the internal client, which handles low-l
 - ✅ Parameter validation
 
 **Test Cases:**
-- `test_init`: Tests internal client initialization
-- `test_get_timestamp`: Tests timestamp generation
-- `test_sign`: Tests message signing
-- `test_get_stark_pri_key`: Tests private key retrieval
+- `test_parse_resolution`: Tests resolution parsing
+- `test_resolve_trading_signer_address`: Tests trading signer address derivation
+- `test_sign_typed_data_with_trading_key`: Tests typed-data signing with the trading private key
 
 ## Integration Tests
 
@@ -189,7 +180,7 @@ File: `tests/integration/test_websocket.py`
 
 The following components have good test coverage:
 
-1. **StarkEx Signing Adapter**: Comprehensive unit tests for all cryptographic operations
+1. **EIP-712 Signing Helpers**: Comprehensive unit tests for the v2 order-signing flow
 2. **Client Initialization**: Thorough testing of parameter validation and initialization
 3. **API Endpoint Structure**: Integration tests cover all major API endpoints
 
@@ -226,7 +217,7 @@ To run a specific test file:
 
 ```bash
 cd python_sdk
-python -m unittest tests/test_starkex_signing_adapter.py
+python -m unittest tests/test_eip712_signing.py
 ```
 
 ### Running Integration Tests
@@ -242,12 +233,18 @@ python run_integration_tests.py
 - `EDGEX_BASE_URL`: The base URL for the EdgeX API
 - `EDGEX_WS_URL`: The WebSocket URL for the EdgeX API
 - `EDGEX_ACCOUNT_ID`: Your EdgeX account ID
-- `EDGEX_STARK_PRIVATE_KEY`: Your Stark private key
+- `EDGEX_TRADING_PRIVATE_KEY`: Your trading private key
+- `EDGEX_API_KEY`: Your API key
+- `EDGEX_API_PASSPHRASE`: Your API passphrase
+- `EDGEX_API_SECRET`: Your API secret
 
 Example:
 ```bash
 export EDGEX_ACCOUNT_ID="your_account_id_here"
-export EDGEX_STARK_PRIVATE_KEY="your_stark_private_key_here"
+export EDGEX_TRADING_PRIVATE_KEY="your_trading_private_key_here"
+export EDGEX_API_KEY="your_api_key_here"
+export EDGEX_API_PASSPHRASE="your_api_passphrase_here"
+export EDGEX_API_SECRET="your_api_secret_here"
 ```
 
 **⚠️ SECURITY WARNING**: Never commit these credentials to version control. Always use environment variables or secure credential management systems.
