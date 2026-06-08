@@ -122,6 +122,8 @@ edgex_sdk/
 ├── order/              # Order API
 ├── quote/              # Quote API
 ├── transfer/           # Transfer API
+├── unified_asset/      # Unified asset withdraw / transfer flows
+├── cctp/               # Circle CCTP bridge helpers
 └── ws/                 # WebSocket API
 ```
 
@@ -136,12 +138,24 @@ The SDK currently supports the following API modules:
   - Get collateral transaction details
   - Update leverage settings
 
-- **Asset API**: Handle asset management and withdrawals
+- **Asset API**: Handle legacy asset records and old withdrawal surfaces
   - Get asset orders with pagination
   - Get coin rates
-  - Manage withdrawals (normal, cross-chain, and fast)
+  - Legacy withdrawal helpers retained for compatibility
   - Get withdrawal records and sign information
   - Check withdrawable amounts
+
+- **Unified Asset API**: Current market-maker withdrawal flow
+  - Build Spot / Perp V2 withdraw attempts with raw token amounts
+  - Get fee via `getFeeByAssetFlow`
+  - Sign server-provided EIP-712 payloads
+  - Submit flows through `submitAssetFlow`
+
+- **CCTP Bridge Helpers**: Edge Mainnet USDC bridge support
+  - Quote Circle CCTP fast-transfer fees
+  - Build Edge `depositForBurn` bridge transactions
+  - Fetch Iris V2 attestations
+  - Build / submit Ethereum `receiveMessage` claim transactions
 
 - **Funding API**: Manage funding operations and account balance
   - Handle funding transactions
@@ -223,7 +237,30 @@ asyncio.run(main())
 
 ## Signing
 
-The v2 SDK uses the trading private key for EIP-712 order signing and the wallet private key for withdrawal / transfer flows. There is no StarkEx signing adapter in the v2 path.
+The v2 SDK uses the trading private key for EIP-712 order signing and the wallet private key for withdrawal / transfer flows. Unified-asset withdrawals sign the EIP-712 payload returned by `getEIP712Data` and submit a `0x`-prefixed signature. There is no StarkEx signing adapter in the v2 path.
+
+## Current Withdrawal Path
+
+```python
+from edgex_sdk import Client, CreateWithdrawParams
+
+client = Client(
+    base_url="https://pro.edgex.exchange",
+    account_id=12345,
+    api_key="...",
+    api_passphrase="...",
+    api_secret="...",
+    wallet_private_key="...",
+)
+
+result = await client.create_withdraw(CreateWithdrawParams(
+    amount_raw="1000000",
+    user_address="0xYourWallet",
+    profile="mainnet-usdc",
+))
+```
+
+Use `source="perpv2"` and the Perp V2 account ID in `source_account` to reuse the same unified-asset withdrawal path for Perp V2.
 
 ## Error Handling
 

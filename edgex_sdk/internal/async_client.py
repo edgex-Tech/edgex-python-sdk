@@ -122,15 +122,15 @@ class AsyncClient:
         self.wallet_address = derive_address_from_private_key(self.wallet_private_key)
         return self.wallet_address
 
-    def sign_typed_data_with_trading_key(self, typed_data: Dict[str, Any]) -> str:
+    def sign_typed_data_with_trading_key(self, typed_data: Dict[str, Any], include_0x: bool = False) -> str:
         if not self.trading_private_key:
             raise ValueError("trading private key is required for EIP-712 signing")
-        return sign_typed_data(self.trading_private_key, typed_data)
+        return sign_typed_data(self.trading_private_key, typed_data, include_0x=include_0x)
 
-    def sign_typed_data_with_wallet_key(self, typed_data: Dict[str, Any]) -> str:
+    def sign_typed_data_with_wallet_key(self, typed_data: Dict[str, Any], include_0x: bool = False) -> str:
         if not self.wallet_private_key:
             raise ValueError("wallet private key is required for EIP-712 signing")
-        return sign_typed_data(self.wallet_private_key, typed_data)
+        return sign_typed_data(self.wallet_private_key, typed_data, include_0x=include_0x)
 
     # ── nonce / client id ──
 
@@ -152,10 +152,11 @@ class AsyncClient:
         path: str,
         data: Optional[Dict[str, Any]] = None,
         params: Optional[Dict[str, Any]] = None,
+        rewrite_version: bool = True,
     ) -> Dict[str, Any]:
         await self._ensure_session()
 
-        actual_path = rewrite_path_to_v2(path)
+        actual_path = rewrite_path_to_v2(path) if rewrite_version else path
         url = f"{self.base_url}{actual_path}"
 
         timestamp = str(int(time.time() * 1000))

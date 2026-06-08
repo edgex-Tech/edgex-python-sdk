@@ -23,10 +23,11 @@ from edgex_sdk import (
     WebSocketManager,
     GetWithdrawSignInfoParams,
     CreateTransferOutParams,
-    TransferReason
+    TransferReason,
+    CreateWithdrawParams,
 )
 from edgex_sdk.account.client import RegisterAccountParams
-from edgex_sdk.asset.client import CreateWithdrawalParams, GetAssetOrdersParams
+from edgex_sdk.asset.client import GetAssetOrdersParams
 from edgex_sdk.order.types import CancelOrderParams, CreateOrderParams, OrderType
 from edgex_sdk.transfer.client import GetWithdrawAvailableAmountParams
 
@@ -36,12 +37,14 @@ async def main():
     base_url = os.getenv("EDGEX_BASE_URL", "https://testnet.edgex.exchange")
     account_id = int(os.getenv("EDGEX_ACCOUNT_ID", "your_account_id"))
     trading_private_key = os.getenv("EDGEX_TRADING_PRIVATE_KEY", "your_private_key")
+    wallet_private_key = os.getenv("EDGEX_SIGNER_PRIVATE_KEY", trading_private_key)
 
     # Create a new client
     client = Client(
         base_url=base_url,
         account_id=account_id,
-        trading_private_key=trading_private_key
+        trading_private_key=trading_private_key,
+        wallet_private_key=wallet_private_key
     )
 
     # Get server time
@@ -153,12 +156,11 @@ async def main():
     except Exception as e:
         print(f"Unexpected error: {e}")
 
-    # Create a withdrawal order
-    withdrawResult = await client.create_normal_withdrawal(CreateWithdrawalParams(
-        coin_id="1000",
-        amount="10",
-        eth_address="your-eth-address", # "0x111111"
-        tag=""
+    # Create a unified-asset withdrawal order
+    withdrawResult = await client.create_withdraw(CreateWithdrawParams(
+        amount_raw="10000000",
+        user_address="your-evm-address",
+        profile="testnet-usdc"
     ))
     print(f"WithdrawResult: {withdrawResult}")
 

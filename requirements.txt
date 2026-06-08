@@ -8,3 +8,4 @@ websocket-client>=1.0.0
 
 # EIP-712 signing (eth-account includes eth-abi, eth-utils, etc.)
 eth-account>=0.13.0
+eth-utils>=2.0.0

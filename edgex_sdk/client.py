@@ -11,6 +11,7 @@ from .metadata.client import Client as MetadataClient
 from .order.client import Client as OrderClient
 from .quote.client import Client as QuoteClient
 from .transfer.client import Client as TransferClient
+from .unified_asset.client import Client as UnifiedAssetClient
 from .order.types import CreateOrderParams, CancelOrderParams, GetActiveOrderParams, OrderFillTransactionParams, OrderType, OrderSide
 
 
@@ -52,6 +53,7 @@ class Client:
         self.funding = FundingClient(self.async_client)
         self.transfer = TransferClient(self.async_client)
         self.asset = AssetClient(self.async_client)
+        self.unified_asset = UnifiedAssetClient(self.async_client)
 
         self._metadata_cache = None
         self._metadata_cache_time = 0.0
@@ -147,11 +149,11 @@ class Client:
             raise ValueError("failed to get metadata")
         return await self.transfer.create_transfer_out(params, metadata.get("data", {}))
 
+    async def create_withdraw(self, params) -> Dict[str, Any]:
+        return await self.unified_asset.create_withdraw(params)
+
     async def create_normal_withdrawal(self, params) -> Dict[str, Any]:
-        metadata = await self.get_metadata()
-        if not metadata:
-            raise ValueError("failed to get metadata")
-        return await self.asset.create_withdrawal(params, metadata.get("data", {}))
+        return await self.create_withdraw(params)
 
     async def cancel_order(self, params: CancelOrderParams) -> Dict[str, Any]:
         return await self.order.cancel_order(params)
