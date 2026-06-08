@@ -111,6 +111,28 @@ class CreateWithdrawParams:
         self.extra_data = extra_data
 
 
+class CreateSpotDepositParams:
+    def __init__(
+        self,
+        amount_raw: str,
+        user_address: str,
+        token_address: str,
+        chain_id: int,
+        spot_account_id: str = "",
+        source_account: str = "",
+        privy_address: str = ZERO_ADDRESS,
+        extra_data: str = "",
+    ):
+        self.amount_raw = str(amount_raw)
+        self.user_address = user_address
+        self.token_address = token_address
+        self.chain_id = int(chain_id)
+        self.spot_account_id = str(spot_account_id) if spot_account_id else ""
+        self.source_account = source_account
+        self.privy_address = privy_address or ZERO_ADDRESS
+        self.extra_data = extra_data
+
+
 def next_snowflake_id() -> int:
     global _SF_LAST_TS, _SF_SEQ
     node = int(os.getenv("NODE_ID", "1")) & 0x3FF
@@ -178,6 +200,28 @@ def build_withdraw_attempt(
     }
 
 
+def build_spot_deposit_attempt(
+    user_address: str,
+    source_account: str,
+    token_address: str,
+    amount_raw: str,
+    chain_id: int,
+    spot_account_id: str,
+    privy_address: str = ZERO_ADDRESS,
+) -> Dict[str, Any]:
+    return {
+        "userAddress": user_address,
+        "privyAddress": privy_address or ZERO_ADDRESS,
+        "source": "chain-%d" % int(chain_id),
+        "sourceAccount": source_account,
+        "tokenAddress": token_address,
+        "amount": str(amount_raw),
+        "fee": "0",
+        "destination": "spot",
+        "destinationAccount": str(spot_account_id),
+    }
+
+
 def apply_fee_to_attempt(attempt: Dict[str, Any], fee: str) -> None:
     gross_amount = int(attempt["amount"])
     fee_amount = int(fee)
@@ -210,6 +254,19 @@ class Client:
             method="POST",
             path=UNIFIED_ASSET_BASE_PATH + "/getEIP712Data",
             data={"attempt": attempt},
+            rewrite_version=False,
+        )
+        return _unwrap_response(response)
+
+    async def get_deposit_data(
+        self,
+        attempt: Dict[str, Any],
+        extra_data: str = "",
+    ) -> Dict[str, Any]:
+        response = await self.async_client.make_authenticated_request(
+            method="POST",
+            path=UNIFIED_ASSET_BASE_PATH + "/getDepositData",
+            data={"attempt": attempt, "extraData": extra_data},
             rewrite_version=False,
         )
         return _unwrap_response(response)
@@ -285,3 +342,22 @@ class Client:
             privy_identity_token=params.privy_identity_token,
             extra_data=params.extra_data,
         )
+
+    async def get_spot_deposit_data(self, params: CreateSpotDepositParams) -> Dict[str, Any]:
+        if not params.token_address:
+            raise ValueError("token_address is required")
+        if params.chain_id <= 0:
+            raise ValueError("chain_id is required")
+
+        spot_account_id = params.spot_account_id or str(self.async_client.get_account_id())
+        source_account = params.source_account or params.user_address
+        attempt = build_spot_deposit_attempt(
+            user_address=params.user_address,
+            privy_address=params.privy_address,
+            source_account=source_account,
+            token_address=params.token_address,
+            amount_raw=params.amount_raw,
+            chain_id=params.chain_id,
+            spot_account_id=spot_account_id,
+        )
+        return await self.get_deposit_data(attempt, params.extra_data)

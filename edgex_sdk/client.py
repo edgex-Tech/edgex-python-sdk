@@ -152,6 +152,9 @@ class Client:
     async def create_withdraw(self, params) -> Dict[str, Any]:
         return await self.unified_asset.create_withdraw(params)
 
+    async def get_spot_deposit_data(self, params) -> Dict[str, Any]:
+        return await self.unified_asset.get_spot_deposit_data(params)
+
     async def create_normal_withdrawal(self, params) -> Dict[str, Any]:
         return await self.create_withdraw(params)
 

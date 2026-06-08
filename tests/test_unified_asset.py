@@ -5,9 +5,11 @@ import unittest
 from edgex_sdk.client import Client
 from edgex_sdk.internal.eip712 import build_typed_data_from_server_response
 from edgex_sdk.unified_asset.client import (
+    CreateSpotDepositParams,
     CreateWithdrawParams,
     ZERO_ADDRESS,
     apply_fee_to_attempt,
+    build_spot_deposit_attempt,
     build_withdraw_attempt,
     profile_name_for_asset,
     resolve_withdraw_profile,
@@ -50,6 +52,16 @@ class FakeAsyncClient:
             }
         if path.endswith("/submitAssetFlow"):
             return {"code": "SUCCESS", "data": {"flowId": "1"}}
+        if path.endswith("/getDepositData"):
+            return {
+                "code": "SUCCESS",
+                "data": {
+                    "chainId": 33431,
+                    "to": "0x86245522276a9F845a65a591b485cd4AaA51D86c",
+                    "data": "0x1234",
+                    "value": "0",
+                },
+            }
         raise AssertionError(path)
 
 
@@ -94,6 +106,25 @@ class UnifiedAssetWithdrawTest(unittest.TestCase):
         self.assertEqual(attempt["source"], "perpv2")
         self.assertEqual(attempt["sourceAccount"], "67890")
         self.assertEqual(attempt["destination"], "chain-3343")
+
+    def test_build_spot_deposit_attempt_uses_chain_to_spot_direction(self):
+        attempt = build_spot_deposit_attempt(
+            user_address="0xFCAd0B19bB29D4674531d6f115237E16AfCE377c",
+            privy_address=ZERO_ADDRESS,
+            source_account="0xFCAd0B19bB29D4674531d6f115237E16AfCE377c",
+            token_address="******************************************",
+            amount_raw="1000",
+            chain_id=33431,
+            spot_account_id="12345",
+        )
+
+        self.assertEqual(attempt["source"], "chain-33431")
+        self.assertEqual(attempt["sourceAccount"], attempt["userAddress"])
+        self.assertEqual(attempt["tokenAddress"], "******************************************")
+        self.assertEqual(attempt["amount"], "1000")
+        self.assertEqual(attempt["fee"], "0")
+        self.assertEqual(attempt["destination"], "spot")
+        self.assertEqual(attempt["destinationAccount"], "12345")
 
     def test_apply_fee_to_attempt_subtracts_fee_from_gross_amount(self):
         attempt = {"amount": "1000", "fee": "0"}
@@ -164,6 +195,38 @@ class UnifiedAssetWithdrawTest(unittest.TestCase):
         self.assertEqual(submit_body["attempt"]["amount"], "990")
         self.assertEqual(submit_body["userSignature"][:2], "0x")
         self.assertEqual(result["flowId"], "1")
+
+    def test_get_spot_deposit_data_uses_deposit_path_without_signing(self):
+        fake = FakeAsyncClient()
+        from edgex_sdk.unified_asset.client import Client as UnifiedAssetClient
+
+        unified = UnifiedAssetClient(fake)
+        result = asyncio.run(
+            unified.get_spot_deposit_data(
+                CreateSpotDepositParams(
+                    amount_raw="1000",
+                    user_address="0xFCAd0B19bB29D4674531d6f115237E16AfCE377c",
+                    token_address="******************************************",
+                    chain_id=33431,
+                    spot_account_id="12345",
+                )
+            )
+        )
+
+        request_calls = [call for call in fake.calls if call[0] in {"GET", "POST"}]
+        self.assertEqual(len(request_calls), 1)
+        method, path, body, params, rewrite_version = request_calls[0]
+        self.assertEqual(method, "POST")
+        self.assertEqual(path, "/api/v1/private/unified-asset/getDepositData")
+        self.assertIsNone(params)
+        self.assertFalse(rewrite_version)
+        self.assertEqual(body["extraData"], "")
+        self.assertEqual(body["attempt"]["source"], "chain-33431")
+        self.assertEqual(body["attempt"]["sourceAccount"], body["attempt"]["userAddress"])
+        self.assertEqual(body["attempt"]["destination"], "spot")
+        self.assertEqual(body["attempt"]["destinationAccount"], "12345")
+        self.assertEqual(result["chainId"], 33431)
+        self.assertFalse(any(call[0] == "sign" for call in fake.calls))
 
 
 if __name__ == "__main__":
