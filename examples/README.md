@@ -70,6 +70,23 @@ To run the example:
 python advanced_usage.py
 ```
 
+### Market Maker Withdraw + CCTP Bridge
+
+The `mm_withdraw_bridge.py` example uses the current unified-asset withdrawal flow:
+
+```text
+getFeeByAssetFlow -> getEIP712Data -> submitAssetFlow
+```
+
+It also demonstrates Edge Mainnet -> Ethereum Mainnet USDC bridging via Circle CCTP V2 and manual Iris attestation claim.
+
+Install bridge dependencies before running on-chain bridge actions:
+
+```bash
+pip install -e ".[bridge]"
+python mm_withdraw_bridge.py
+```
+
 ## Contract IDs
 
 EdgeX uses numeric contract IDs instead of symbol-based identifiers. Here are some common contract mappings:

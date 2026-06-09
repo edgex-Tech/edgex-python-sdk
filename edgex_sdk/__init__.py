@@ -24,6 +24,15 @@ from .asset.client import (
     GetWithdrawSignInfoParams,
     CreateCrossWithdrawParams,
 )
+from .unified_asset.client import (
+    CreateSpotDepositParams,
+    CreateWithdrawParams,
+    ZERO_ADDRESS,
+    build_spot_deposit_attempt,
+    profile_name_for_asset,
+    resolve_withdraw_profile,
+)
+from .cctp.client import CCTPBridgeClient
 from .account.client import (
     GetPositionTransactionPageParams,
     GetCollateralTransactionPageParams,
@@ -60,8 +69,15 @@ __all__ = [
     "GetTransferInPageParams",
     "GetAssetOrdersParams",
     "CreateWithdrawalParams",
+    "CreateSpotDepositParams",
+    "CreateWithdrawParams",
     "GetWithdrawSignInfoParams",
     "CreateCrossWithdrawParams",
+    "ZERO_ADDRESS",
+    "build_spot_deposit_attempt",
+    "profile_name_for_asset",
+    "resolve_withdraw_profile",
+    "CCTPBridgeClient",
     "GetPositionTransactionPageParams",
     "GetCollateralTransactionPageParams",
     "GetPositionOrdersParams",

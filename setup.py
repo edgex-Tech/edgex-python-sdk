@@ -24,8 +24,12 @@ setup(
         "aiohttp>=3.8.0",
         "websocket-client>=1.0.0",
         "eth-account>=0.13.0",
+        "eth-utils>=2.0.0",
     ],
     extras_require={
+        "bridge": [
+            "web3>=6.0,<8.0",
+        ],
         "dev": [
             "pytest>=6.0",
             "pytest-asyncio>=0.18.0",

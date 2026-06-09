@@ -42,6 +42,12 @@ class TestEip712Signing(unittest.TestCase):
         self.assertEqual(len(signature), 130)
         int(signature, 16)
 
+    def test_sign_typed_data_with_0x_prefix(self):
+        signature = sign_typed_data(self.private_key_hex, self.typed_data, include_0x=True)
+        self.assertTrue(signature.startswith("0x"))
+        self.assertEqual(len(signature), 132)
+        int(signature[2:], 16)
+
 
 if __name__ == "__main__":
     unittest.main()
