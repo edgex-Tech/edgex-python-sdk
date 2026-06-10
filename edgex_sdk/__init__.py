@@ -3,6 +3,7 @@ from .order.types import (
     CreateOrderParams,
     CancelOrderParams,
     GetActiveOrderParams,
+    OpenTpSlParams,
     OrderFillTransactionParams,
     GetHistoryOrderPageParams,
     OrderType,
@@ -17,12 +18,6 @@ from .transfer.client import (
     GetWithdrawAvailableAmountParams,
     GetTransferOutPageParams,
     GetTransferInPageParams,
-)
-from .asset.client import (
-    GetAssetOrdersParams,
-    CreateWithdrawalParams,
-    GetWithdrawSignInfoParams,
-    CreateCrossWithdrawParams,
 )
 from .unified_asset.client import (
     CreateSpotDepositParams,
@@ -40,6 +35,7 @@ from .account.client import (
     GetPositionTermPageParams,
     GetAccountAssetSnapshotPageParams,
     GetAccountPageParams,
+    SetMarginModeParams,
 )
 from .quote.client import (
     KlineType,
@@ -55,6 +51,7 @@ __all__ = [
     "CreateOrderParams",
     "CancelOrderParams",
     "GetActiveOrderParams",
+    "OpenTpSlParams",
     "OrderFillTransactionParams",
     "GetHistoryOrderPageParams",
     "OrderType",
@@ -67,12 +64,8 @@ __all__ = [
     "GetWithdrawAvailableAmountParams",
     "GetTransferOutPageParams",
     "GetTransferInPageParams",
-    "GetAssetOrdersParams",
-    "CreateWithdrawalParams",
     "CreateSpotDepositParams",
     "CreateWithdrawParams",
-    "GetWithdrawSignInfoParams",
-    "CreateCrossWithdrawParams",
     "ZERO_ADDRESS",
     "build_spot_deposit_attempt",
     "profile_name_for_asset",
@@ -84,6 +77,7 @@ __all__ = [
     "GetPositionTermPageParams",
     "GetAccountAssetSnapshotPageParams",
     "GetAccountPageParams",
+    "SetMarginModeParams",
     "KlineType",
     "PriceType",
     "GetKLineParams",

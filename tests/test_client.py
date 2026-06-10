@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, AsyncMock
 
 from edgex_sdk.client import Client
 from edgex_sdk.order.types import OrderSide, OrderType, CreateOrderParams
+from edgex_sdk.account.client import SetMarginModeParams
 
 
 class TestClient(unittest.TestCase):
@@ -22,7 +23,7 @@ class TestClient(unittest.TestCase):
         self.client = Client(
             base_url=self.base_url,
             account_id=self.account_id,
-            trading_private_key=self.trading_private_key
+            trading_private_key=self.trading_private_key,
         )
 
     def test_init(self):
@@ -34,116 +35,89 @@ class TestClient(unittest.TestCase):
         self.assertIsNotNone(self.client.quote)
         self.assertIsNotNone(self.client.funding)
         self.assertIsNotNone(self.client.transfer)
-        self.assertIsNotNone(self.client.asset)
 
     def test_create_order(self):
         """Test create_order method."""
-        # Mock the get_metadata method
         self.client.get_metadata = AsyncMock(return_value={"data": {"contractList": [{"contractId": "BTC-USDT"}]}})
-
-        # Mock the order.create_order method
         self.client.order = MagicMock()
         self.client.order.create_order = AsyncMock(return_value={"code": "SUCCESS", "data": {"orderId": "123"}})
 
-        # Create order parameters
         params = CreateOrderParams(
             contract_id="BTC-USDT",
             price="30000",
             size="0.001",
             type=OrderType.LIMIT,
-            side=OrderSide.BUY
+            side=OrderSide.BUY,
         )
 
-        # Call the method
         result = asyncio.run(self.client.create_order(params))
 
-        # Check that get_metadata was called
         self.client.get_metadata.assert_called_once()
-
-        # Check that order.create_order was called with the correct arguments
         self.client.order.create_order.assert_called_once()
-
-        # Check the result
         self.assertEqual(result, {"code": "SUCCESS", "data": {"orderId": "123"}})
 
     def test_get_max_order_size(self):
         """Test get_max_order_size method."""
-        # Mock the order.get_max_order_size method
         self.client.order = MagicMock()
         self.client.order.get_max_order_size = AsyncMock(return_value={"code": "SUCCESS", "data": {"maxSize": "0.1"}})
 
-        # Call the method
         result = asyncio.run(self.client.get_max_order_size("BTC-USDT", 30000))
 
-        # Check that order.get_max_order_size was called with the correct arguments
         self.client.order.get_max_order_size.assert_called_once_with("BTC-USDT", 30000.0)
-
-        # Check the result
         self.assertEqual(result, {"code": "SUCCESS", "data": {"maxSize": "0.1"}})
 
     def test_cancel_order(self):
         """Test cancel_order method."""
-        # Mock the order.cancel_order method
         self.client.order = MagicMock()
         self.client.order.cancel_order = AsyncMock(return_value={"code": "SUCCESS", "data": {"success": True}})
 
-        # Create cancel order parameters
         from edgex_sdk.order.types import CancelOrderParams
         params = CancelOrderParams(order_id="123")
 
-        # Call the method
         result = asyncio.run(self.client.cancel_order(params))
 
-        # Check that order.cancel_order was called with the correct arguments
         self.client.order.cancel_order.assert_called_once_with(params)
-
-        # Check the result
         self.assertEqual(result, {"code": "SUCCESS", "data": {"success": True}})
 
     def test_get_account_asset(self):
         """Test get_account_asset method."""
-        # Mock the account.get_account_asset method
         self.client.account = MagicMock()
         self.client.account.get_account_asset = AsyncMock(return_value={"code": "SUCCESS", "data": {"assets": []}})
 
-        # Call the method
         result = asyncio.run(self.client.get_account_asset())
 
-        # Check that account.get_account_asset was called
         self.client.account.get_account_asset.assert_called_once()
-
-        # Check the result
         self.assertEqual(result, {"code": "SUCCESS", "data": {"assets": []}})
 
     def test_get_account_positions(self):
         """Test get_account_positions method."""
-        # Mock the account.get_account_positions method
         self.client.account = MagicMock()
         self.client.account.get_account_positions = AsyncMock(return_value={"code": "SUCCESS", "data": {"positions": []}})
 
-        # Call the method
         result = asyncio.run(self.client.get_account_positions())
 
-        # Check that account.get_account_positions was called
         self.client.account.get_account_positions.assert_called_once()
-
-        # Check the result
         self.assertEqual(result, {"code": "SUCCESS", "data": {"positions": []}})
+
+    def test_set_margin_mode(self):
+        """Test set_margin_mode method."""
+        self.client.get_metadata = AsyncMock(return_value={"data": {"global": {"nativeChainId": "33431"}}})
+        self.client.account = MagicMock()
+        self.client.account.set_margin_mode = AsyncMock(return_value={"code": "SUCCESS", "data": {"ok": True}})
+        params = SetMarginModeParams(contract_id="10000001", margin_mode="ISOLATED")
+
+        result = asyncio.run(self.client.set_margin_mode(params))
+
+        self.client.get_metadata.assert_called_once()
+        self.client.account.set_margin_mode.assert_called_once_with(params, {"global": {"nativeChainId": "33431"}})
+        self.assertEqual(result, {"code": "SUCCESS", "data": {"ok": True}})
 
     def test_create_limit_order(self):
         """Test create_limit_order method."""
-        # Mock the create_order method
         self.client.create_order = AsyncMock(return_value={"code": "SUCCESS", "data": {"orderId": "123"}})
 
-        # Call the method
-        result = asyncio.run(self.client.create_limit_order(
-            contract_id="BTC-USDT",
-            size="0.001",
-            price="30000",
-            side=OrderSide.BUY
-        ))
+        result = asyncio.run(self.client.create_limit_order(contract_id="BTC-USDT", size="0.001", price="30000", side=OrderSide.BUY))
 
-        # Check that create_order was called with the correct arguments
         self.client.create_order.assert_called_once()
         args = self.client.create_order.call_args[0][0]
         self.assertEqual(args.contract_id, "BTC-USDT")
@@ -151,23 +125,14 @@ class TestClient(unittest.TestCase):
         self.assertEqual(args.price, "30000")
         self.assertEqual(args.side, OrderSide.BUY)
         self.assertEqual(args.type, OrderType.LIMIT)
-
-        # Check the result
         self.assertEqual(result, {"code": "SUCCESS", "data": {"orderId": "123"}})
 
     def test_create_market_order(self):
         """Test create_market_order method."""
-        # Mock the create_order method
         self.client.create_order = AsyncMock(return_value={"code": "SUCCESS", "data": {"orderId": "123"}})
 
-        # Call the method
-        result = asyncio.run(self.client.create_market_order(
-            contract_id="BTC-USDT",
-            size="0.001",
-            side=OrderSide.BUY
-        ))
+        result = asyncio.run(self.client.create_market_order(contract_id="BTC-USDT", size="0.001", side=OrderSide.BUY))
 
-        # Check that create_order was called with the correct arguments
         self.client.create_order.assert_called_once()
         args = self.client.create_order.call_args[0][0]
         self.assertEqual(args.contract_id, "BTC-USDT")
@@ -175,11 +140,8 @@ class TestClient(unittest.TestCase):
         self.assertEqual(args.price, "0")
         self.assertEqual(args.side, OrderSide.BUY)
         self.assertEqual(args.type, OrderType.MARKET)
-
-        # Check the result
         self.assertEqual(result, {"code": "SUCCESS", "data": {"orderId": "123"}})
 
 
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

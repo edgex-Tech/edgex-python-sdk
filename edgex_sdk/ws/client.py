@@ -32,7 +32,7 @@ class Client:
         self.request_uri = request_uri
 
         self.conn = None
-        self.handlers: Dict[str, Callable] = {}
+        self.handlers: Dict[str, Callable[[str], None]] = {}
         self.done = threading.Event()
         self.ping_thread = None
         self.subscriptions: set = set()
@@ -136,11 +136,48 @@ class Client:
                 if msg_type in self.handlers:
                     self.handlers[msg_type](message)
 
+                if msg_type == "trade-event":
+                    self._dispatch_private_trade_event(message, msg)
+
             except Exception as e:
+                if self.done.is_set() or self.conn is None:
+                    self.logger.debug(f"WebSocket receive loop stopped during shutdown: {e}")
+                    break
                 self.logger.error(f"Error handling message: {e}")
                 for hook in self.on_disconnect_hooks:
                     hook(e)
                 break
+
+    def _dispatch_private_trade_event(self, message: str, msg: Dict[str, Any]):
+        content = msg.get("content")
+        if not isinstance(content, dict):
+            return
+
+        data = content.get("data")
+        if not isinstance(data, dict):
+            return
+
+        for group in (
+            "account",
+            "collateral",
+            "collateralTransaction",
+            "position",
+            "positionTransaction",
+            "deposit",
+            "withdraw",
+            "transferIn",
+            "transferOut",
+            "order",
+            "orderFillTransaction",
+        ):
+            payload = data.get(group)
+            if payload is None:
+                continue
+            if isinstance(payload, list) and not payload:
+                continue
+            handler = self.handlers.get(group)
+            if handler:
+                handler(message)
 
     def _handle_pong(self, timestamp: str):
         try:

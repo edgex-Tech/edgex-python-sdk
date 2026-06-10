@@ -5,14 +5,14 @@ from decimal import Decimal
 from .internal.async_client import AsyncClient
 from .internal.auth import DEFAULT_HEADER_KEY
 from .account.client import Client as AccountClient
-from .asset.client import Client as AssetClient
 from .funding.client import Client as FundingClient
 from .metadata.client import Client as MetadataClient
 from .order.client import Client as OrderClient
 from .quote.client import Client as QuoteClient
 from .transfer.client import Client as TransferClient
 from .unified_asset.client import Client as UnifiedAssetClient
-from .order.types import CreateOrderParams, CancelOrderParams, GetActiveOrderParams, OrderFillTransactionParams, OrderType, OrderSide
+from .order.types import CreateOrderParams, CancelOrderParams, GetActiveOrderParams, OpenTpSlParams, OrderFillTransactionParams, OrderType, OrderSide
+from .account.client import SetMarginModeParams
 
 
 class Client:
@@ -52,7 +52,6 @@ class Client:
         self.quote = QuoteClient(self.async_client)
         self.funding = FundingClient(self.async_client)
         self.transfer = TransferClient(self.async_client)
-        self.asset = AssetClient(self.async_client)
         self.unified_asset = UnifiedAssetClient(self.async_client)
 
         self._metadata_cache = None
@@ -172,6 +171,12 @@ class Client:
 
     async def get_account_positions(self) -> Dict[str, Any]:
         return await self.account.get_account_positions()
+
+    async def set_margin_mode(self, params: SetMarginModeParams) -> Dict[str, Any]:
+        metadata = await self.get_metadata()
+        if not metadata:
+            raise ValueError("failed to get metadata")
+        return await self.account.set_margin_mode(params, metadata.get("data", {}))
 
     async def get_24_hour_quote(self, contract_id: str) -> Dict[str, Any]:
         return await self.quote.get_24_hour_quote(contract_id)
