@@ -41,10 +41,6 @@ from .quote.client import (
     GetKLineParams,
     GetOrderBookDepthParams,
     GetMultiContractKLineParams,
-    GetAccurateOpenInterestParams,
-    GetStatDayTradeParams,
-    GetExchangeLongShortRatioParams,
-    GetEstimatedFeeParams,
     GetMarketStatusParams,
 )
 from .ws.manager import Manager as WebSocketManager
@@ -84,10 +80,6 @@ __all__ = [
     "GetKLineParams",
     "GetOrderBookDepthParams",
     "GetMultiContractKLineParams",
-    "GetAccurateOpenInterestParams",
-    "GetStatDayTradeParams",
-    "GetExchangeLongShortRatioParams",
-    "GetEstimatedFeeParams",
     "GetMarketStatusParams",
     "WebSocketManager",
 ]

@@ -55,30 +55,6 @@ class GetMultiContractKLineParams:
         self.size = size
 
 
-class GetAccurateOpenInterestParams:
-    def __init__(self, contract_id_list: List[str] = None):
-        self.contract_id_list = contract_id_list or []
-
-
-class GetStatDayTradeParams:
-    def __init__(self, start_day_time_inclusive: str, end_day_time_exclusive: str):
-        self.start_day_time_inclusive = start_day_time_inclusive
-        self.end_day_time_exclusive = end_day_time_exclusive
-
-
-class GetExchangeLongShortRatioParams:
-    def __init__(self, range: str = "", filter_contract_id_list: List[str] = None, filter_exchange_list: List[str] = None):
-        self.range = range
-        self.filter_contract_id_list = filter_contract_id_list or []
-        self.filter_exchange_list = filter_exchange_list or []
-
-
-class GetEstimatedFeeParams:
-    def __init__(self, filter_begin_kline_time_inclusive: int, filter_end_kline_time_exclusive: int):
-        self.filter_begin_kline_time_inclusive = filter_begin_kline_time_inclusive
-        self.filter_end_kline_time_exclusive = filter_end_kline_time_exclusive
-
-
 class GetMarketStatusParams:
     def __init__(self, contract_id: str = ""):
         self.contract_id = contract_id
@@ -87,11 +63,6 @@ class GetMarketStatusParams:
 class Client:
     def __init__(self, async_client: AsyncClient):
         self.async_client = async_client
-
-    async def get_quote_summary(self, period: str = "LAST_DAY_1") -> Dict[str, Any]:
-        return await self.async_client.make_public_request(
-            method="GET", path="/api/v2/public/quote/getTicketSummary",
-            params={"period": period})
 
     async def get_24_hour_quote(self, contract_id: str) -> Dict[str, Any]:
         return await self.async_client.make_public_request(
@@ -127,40 +98,6 @@ class Client:
                 "contractIdList": ",".join(params.contract_id_list),
                 "klineType": params.kline_type,
                 "size": str(params.size),
-            })
-
-    async def get_accurate_open_interest(self, params: GetAccurateOpenInterestParams) -> Dict[str, Any]:
-        query_params = {}
-        if params.contract_id_list:
-            query_params["contractIdList"] = ",".join(params.contract_id_list)
-        return await self.async_client.make_public_request(
-            method="GET", path="/api/v2/public/quote/getAccurateOpenInterest", params=query_params)
-
-    async def get_stat_day_trade(self, params: GetStatDayTradeParams) -> Dict[str, Any]:
-        return await self.async_client.make_public_request(
-            method="GET", path="/api/v2/public/quote/getStatDayTrade",
-            params={
-                "startDayTimeInclusive": params.start_day_time_inclusive,
-                "endDayTimeExclusive": params.end_day_time_exclusive,
-            })
-
-    async def get_exchange_long_short_ratio(self, params: GetExchangeLongShortRatioParams) -> Dict[str, Any]:
-        query_params = {}
-        if params.range:
-            query_params["range"] = params.range
-        if params.filter_contract_id_list:
-            query_params["filterContractIdList"] = ",".join(params.filter_contract_id_list)
-        if params.filter_exchange_list:
-            query_params["filterExchangeList"] = ",".join(params.filter_exchange_list)
-        return await self.async_client.make_public_request(
-            method="GET", path="/api/v2/public/quote/getExchangeLongShortRatio", params=query_params)
-
-    async def get_estimated_fee(self, params: GetEstimatedFeeParams) -> Dict[str, Any]:
-        return await self.async_client.make_public_request(
-            method="GET", path="/api/v2/public/quote/fee",
-            params={
-                "filterBeginKlineTimeInclusive": str(params.filter_begin_kline_time_inclusive),
-                "filterEndKlineTimeExclusive": str(params.filter_end_kline_time_exclusive),
             })
 
     async def get_market_status(self, params: GetMarketStatusParams = None) -> Dict[str, Any]:
