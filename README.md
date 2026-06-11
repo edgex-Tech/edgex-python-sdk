@@ -2,6 +2,10 @@
 
 A Python SDK for interacting with the EdgeX Exchange API. This SDK provides a comprehensive interface to the EdgeX API, allowing you to easily integrate EdgeX functionality into your Python applications.
 
+## Deprecation Notice
+
+This `v1` branch contains the legacy EdgeX V1 SDK and is deprecated. New integrations should use the `main` branch for the current EdgeX V2 SDK.
+
 ## Features
 
 - **Complete API Coverage**: Access all EdgeX API endpoints
