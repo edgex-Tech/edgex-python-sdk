@@ -104,7 +104,7 @@ class TestClient(unittest.TestCase):
         self.client.get_metadata = AsyncMock(return_value={"data": {"global": {"nativeChainId": "33431"}}})
         self.client.account = MagicMock()
         self.client.account.set_margin_mode = AsyncMock(return_value={"code": "SUCCESS", "data": {"ok": True}})
-        params = SetMarginModeParams(contract_id="10000001", margin_mode="ISOLATED")
+        params = SetMarginModeParams(contract_id="10000001", margin_mode="1")
 
         result = asyncio.run(self.client.set_margin_mode(params))
 
