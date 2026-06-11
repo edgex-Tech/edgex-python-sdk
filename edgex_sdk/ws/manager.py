@@ -74,20 +74,50 @@ class Manager:
         client.on_message("ticker", handler)
         client.subscribe(f"ticker.{contract_id}")
 
-    def subscribe_kline(self, contract_id: str, interval: str, handler: Callable[[str], None]):
+    def subscribe_metadata(self, handler: Callable[[str], None]):
+        client = self.get_public_client()
+        client.on_message("metadata", handler)
+        client.subscribe("metadata")
+
+    def subscribe_ticker_all_1s(self, handler: Callable[[str], None]):
+        client = self.get_public_client()
+        client.on_message("ticker", handler)
+        client.subscribe("ticker.all.1s")
+
+    def subscribe_kline(
+        self,
+        contract_id: str,
+        interval: str,
+        handler: Callable[[str], None],
+        price_type: str = "LAST_PRICE",
+    ):
         client = self.get_public_client()
         client.on_message("kline", handler)
-        client.subscribe(f"kline.{contract_id}.{interval}")
+        client.subscribe(f"kline.{price_type}.{contract_id}.{interval}")
 
-    def subscribe_depth(self, contract_id: str, handler: Callable[[str], None]):
+    def subscribe_depth(
+        self, contract_id: str, handler: Callable[[str], None], depth: int = 15
+    ):
+        if depth not in (15, 200):
+            raise ValueError("depth must be 15 or 200")
         client = self.get_public_client()
         client.on_message("depth", handler)
-        client.subscribe(f"depth.{contract_id}")
+        client.subscribe(f"depth.{contract_id}.{depth}")
 
     def subscribe_trade(self, contract_id: str, handler: Callable[[str], None]):
         client = self.get_public_client()
-        client.on_message("trade", handler)
-        client.subscribe(f"trade.{contract_id}")
+        client.on_message("trades", handler)
+        client.subscribe(f"trades.{contract_id}")
+
+    def subscribe_funding_rate(self, contract_id: str, handler: Callable[[str], None]):
+        client = self.get_public_client()
+        client.on_message("fundingRate", handler)
+        client.subscribe(f"fundingRate.{contract_id}")
+
+    def subscribe_funding_rate_all(self, handler: Callable[[str], None]):
+        client = self.get_public_client()
+        client.on_message("fundingRate", handler)
+        client.subscribe("fundingRate.all")
 
     def subscribe_account_update(self, handler: Callable[[str], None]):
         self.get_private_client().on_message("account", handler)

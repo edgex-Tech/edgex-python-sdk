@@ -91,12 +91,7 @@ def build_typed_data_from_server_response(eip712_response: Dict[str, Any]) -> Di
     }
 
 
-def build_eip712_domain(
-    name: str,
-    version: str,
-    chain_id: str,
-    verifying_contract: str
-) -> Dict[str, Any]:
+def build_eip712_domain(name: str, version: str, chain_id: str, verifying_contract: str) -> Dict[str, Any]:
     domain = {
         "name": name.strip(),
         "version": version.strip(),
@@ -153,5 +148,13 @@ WITHDRAWAL_PARAMS_TYPE = [
     {"name": "feeAmount", "type": "int256"},
     {"name": "nonce", "type": "uint256"},
     {"name": "expirationTimestamp", "type": "uint256"},
+    {"name": "signer", "type": "address"},
+]
+
+SET_MARGIN_MODE_PARAMS_TYPE = [
+    {"name": "accountId", "type": "uint64"},
+    {"name": "assetId", "type": "uint64"},
+    {"name": "marginMode", "type": "uint8"},
+    {"name": "nonce", "type": "uint256"},
     {"name": "signer", "type": "address"},
 ]

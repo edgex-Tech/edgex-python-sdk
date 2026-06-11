@@ -55,14 +55,14 @@ class GetMultiContractKLineParams:
         self.size = size
 
 
+class GetMarketStatusParams:
+    def __init__(self, contract_id: str = ""):
+        self.contract_id = contract_id
+
+
 class Client:
     def __init__(self, async_client: AsyncClient):
         self.async_client = async_client
-
-    async def get_quote_summary(self, period: str = "LAST_DAY_1") -> Dict[str, Any]:
-        return await self.async_client.make_public_request(
-            method="GET", path="/api/v2/public/quote/getTicketSummary",
-            params={"period": period})
 
     async def get_24_hour_quote(self, contract_id: str) -> Dict[str, Any]:
         return await self.async_client.make_public_request(
@@ -99,3 +99,11 @@ class Client:
                 "klineType": params.kline_type,
                 "size": str(params.size),
             })
+
+    async def get_market_status(self, params: GetMarketStatusParams = None) -> Dict[str, Any]:
+        query_params = {}
+        final_params = params or GetMarketStatusParams()
+        if final_params.contract_id:
+            query_params["contractId"] = final_params.contract_id
+        return await self.async_client.make_public_request(
+            method="GET", path="/api/v2/public/quote/getMarketStatus", params=query_params)

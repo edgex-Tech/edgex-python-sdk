@@ -3,6 +3,7 @@ from .order.types import (
     CreateOrderParams,
     CancelOrderParams,
     GetActiveOrderParams,
+    OpenTpSlParams,
     OrderFillTransactionParams,
     GetHistoryOrderPageParams,
     OrderType,
@@ -15,14 +16,6 @@ from .transfer.client import (
     GetTransferOutByIdParams,
     GetTransferInByIdParams,
     GetWithdrawAvailableAmountParams,
-    GetTransferOutPageParams,
-    GetTransferInPageParams,
-)
-from .asset.client import (
-    GetAssetOrdersParams,
-    CreateWithdrawalParams,
-    GetWithdrawSignInfoParams,
-    CreateCrossWithdrawParams,
 )
 from .unified_asset.client import (
     CreateSpotDepositParams,
@@ -40,6 +33,7 @@ from .account.client import (
     GetPositionTermPageParams,
     GetAccountAssetSnapshotPageParams,
     GetAccountPageParams,
+    SetMarginModeParams,
 )
 from .quote.client import (
     KlineType,
@@ -47,6 +41,7 @@ from .quote.client import (
     GetKLineParams,
     GetOrderBookDepthParams,
     GetMultiContractKLineParams,
+    GetMarketStatusParams,
 )
 from .ws.manager import Manager as WebSocketManager
 
@@ -55,6 +50,7 @@ __all__ = [
     "CreateOrderParams",
     "CancelOrderParams",
     "GetActiveOrderParams",
+    "OpenTpSlParams",
     "OrderFillTransactionParams",
     "GetHistoryOrderPageParams",
     "OrderType",
@@ -65,14 +61,8 @@ __all__ = [
     "GetTransferOutByIdParams",
     "GetTransferInByIdParams",
     "GetWithdrawAvailableAmountParams",
-    "GetTransferOutPageParams",
-    "GetTransferInPageParams",
-    "GetAssetOrdersParams",
-    "CreateWithdrawalParams",
     "CreateSpotDepositParams",
     "CreateWithdrawParams",
-    "GetWithdrawSignInfoParams",
-    "CreateCrossWithdrawParams",
     "ZERO_ADDRESS",
     "build_spot_deposit_attempt",
     "profile_name_for_asset",
@@ -84,10 +74,12 @@ __all__ = [
     "GetPositionTermPageParams",
     "GetAccountAssetSnapshotPageParams",
     "GetAccountPageParams",
+    "SetMarginModeParams",
     "KlineType",
     "PriceType",
     "GetKLineParams",
     "GetOrderBookDepthParams",
     "GetMultiContractKLineParams",
+    "GetMarketStatusParams",
     "WebSocketManager",
 ]

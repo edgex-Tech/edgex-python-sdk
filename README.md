@@ -20,6 +20,25 @@ A Python SDK for interacting with the EdgeX Exchange API. This SDK provides a co
 pip install edgex-python-sdk
 ```
 
+### Version Compatibility
+
+`edgex-python-sdk` on PyPI has two incompatible API generations:
+
+- `<= 0.3.0`: contract v1 API SDK
+- `>= 2.0.0`: contract v2 API SDK
+
+These two generations are not backward compatible. Please choose the package version based on the API generation you are integrating with.
+
+Examples:
+
+```bash
+# Contract v1 API SDK
+pip install "edgex-python-sdk<=0.3.0"
+
+# Contract v2 API SDK
+pip install "edgex-python-sdk>=2.0.0"
+```
+
 ### From Source
 
 ```bash
@@ -115,7 +134,6 @@ edgex_sdk/
 ├── __init__.py
 ├── client.py           # Main client
 ├── account/            # Account API
-├── asset/              # Asset API
 ├── funding/            # Funding API
 ├── internal/           # Internal utilities
 ├── metadata/           # Metadata API
@@ -137,13 +155,6 @@ The SDK currently supports the following API modules:
   - Get position transaction history
   - Get collateral transaction details
   - Update leverage settings
-
-- **Asset API**: Handle legacy asset records and old withdrawal surfaces
-  - Get asset orders with pagination
-  - Get coin rates
-  - Legacy withdrawal helpers retained for compatibility
-  - Get withdrawal records and sign information
-  - Check withdrawable amounts
 
 - **Unified Asset API**: Current market-maker withdrawal flow
   - Build Spot / Perp V2 withdraw attempts with raw token amounts
@@ -237,7 +248,12 @@ asyncio.run(main())
 
 ## Signing
 
-The v2 SDK uses the trading private key for EIP-712 order signing and the wallet private key for withdrawal / transfer flows. Unified-asset withdrawals sign the EIP-712 payload returned by `getEIP712Data` and submit a `0x`-prefixed signature. There is no StarkEx signing adapter in the v2 path.
+The v2 SDK uses different keys for different signing flows:
+
+- `trading private key`: EIP-712 signing for order placement and `setMarginMode`
+- `wallet private key`: unified-asset withdrawal / transfer signing
+
+Unified-asset withdrawals sign the EIP-712 payload returned by `getEIP712Data` and submit a `0x`-prefixed signature. There is no StarkEx signing adapter in the v2 path.
 
 ## Current Withdrawal Path
 

@@ -61,30 +61,6 @@ class GetWithdrawAvailableAmountParams:
         self.coin_id = coin_id
 
 
-class GetTransferOutPageParams:
-    def __init__(self, size: str = "10", offset_data: str = "", filter_coin_id_list: List[str] = None,
-                 filter_status_list: List[str] = None, filter_start_created_time_inclusive: int = 0,
-                 filter_end_created_time_exclusive: int = 0):
-        self.size = size
-        self.offset_data = offset_data
-        self.filter_coin_id_list = filter_coin_id_list or []
-        self.filter_status_list = filter_status_list or []
-        self.filter_start_created_time_inclusive = filter_start_created_time_inclusive
-        self.filter_end_created_time_exclusive = filter_end_created_time_exclusive
-
-
-class GetTransferInPageParams:
-    def __init__(self, size: str = "10", offset_data: str = "", filter_coin_id_list: List[str] = None,
-                 filter_status_list: List[str] = None, filter_start_created_time_inclusive: int = 0,
-                 filter_end_created_time_exclusive: int = 0):
-        self.size = size
-        self.offset_data = offset_data
-        self.filter_coin_id_list = filter_coin_id_list or []
-        self.filter_status_list = filter_status_list or []
-        self.filter_start_created_time_inclusive = filter_start_created_time_inclusive
-        self.filter_end_created_time_exclusive = filter_end_created_time_exclusive
-
-
 def _resolve_coin_resolution(metadata: Dict[str, Any], coin_id: str) -> str:
     for coin in metadata.get("coinList", []):
         if coin.get("coinId") == coin_id:
@@ -203,37 +179,3 @@ class Client:
 
         return await self.async_client.make_authenticated_request(
             method="POST", path="/api/v2/private/transfer/createTransferOut", data=body)
-
-    async def get_transfer_out_page(self, params: GetTransferOutPageParams) -> Dict[str, Any]:
-        query_params = {"accountId": str(self.async_client.get_account_id())}
-        if params.size:
-            query_params["size"] = params.size
-        if params.offset_data:
-            query_params["offsetData"] = params.offset_data
-        if params.filter_coin_id_list:
-            query_params["filterCoinIdList"] = ",".join(params.filter_coin_id_list)
-        if params.filter_status_list:
-            query_params["filterStatusList"] = ",".join(params.filter_status_list)
-        if params.filter_start_created_time_inclusive > 0:
-            query_params["filterStartCreatedTimeInclusive"] = str(params.filter_start_created_time_inclusive)
-        if params.filter_end_created_time_exclusive > 0:
-            query_params["filterEndCreatedTimeExclusive"] = str(params.filter_end_created_time_exclusive)
-        return await self.async_client.make_authenticated_request(
-            method="GET", path="/api/v2/private/transfer/getActiveTransferOut", params=query_params)
-
-    async def get_transfer_in_page(self, params: GetTransferInPageParams) -> Dict[str, Any]:
-        query_params = {"accountId": str(self.async_client.get_account_id())}
-        if params.size:
-            query_params["size"] = params.size
-        if params.offset_data:
-            query_params["offsetData"] = params.offset_data
-        if params.filter_coin_id_list:
-            query_params["filterCoinIdList"] = ",".join(params.filter_coin_id_list)
-        if params.filter_status_list:
-            query_params["filterStatusList"] = ",".join(params.filter_status_list)
-        if params.filter_start_created_time_inclusive > 0:
-            query_params["filterStartCreatedTimeInclusive"] = str(params.filter_start_created_time_inclusive)
-        if params.filter_end_created_time_exclusive > 0:
-            query_params["filterEndCreatedTimeExclusive"] = str(params.filter_end_created_time_exclusive)
-        return await self.async_client.make_authenticated_request(
-            method="GET", path="/api/v2/private/transfer/getActiveTransferIn", params=query_params)

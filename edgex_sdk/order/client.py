@@ -34,6 +34,32 @@ def _parse_max_fee_rate(contract: Dict[str, Any]) -> Decimal:
     return max(taker_rate, maker_rate)
 
 
+def _enum_or_value(value: Any) -> Any:
+    return value.value if hasattr(value, "value") else value
+
+
+def _serialize_open_tpsl(params: Any) -> Dict[str, Any]:
+    if params is None:
+        return {}
+    if isinstance(params, dict):
+        return params
+    return {
+        "side": _enum_or_value(params.side),
+        "price": params.price,
+        "size": params.size,
+        "clientOrderId": params.client_order_id,
+        "triggerPrice": params.trigger_price,
+        "triggerPriceType": _enum_or_value(params.trigger_price_type),
+        "expireTime": params.expire_time,
+        "l2Nonce": params.l2_nonce,
+        "l2Value": params.l2_value,
+        "l2Size": params.l2_size,
+        "l2LimitFee": params.l2_limit_fee,
+        "l2ExpireTime": params.l2_expire_time,
+        "l2Signature": params.l2_signature,
+    }
+
+
 class Client:
     def __init__(self, async_client: AsyncClient):
         self.async_client = async_client
@@ -125,8 +151,8 @@ class Client:
             "contractId": params.contract_id,
             "price": price,
             "size": params.size,
-            "type": params.type.value if hasattr(params.type, 'value') else str(params.type),
-            "side": params.side.value if hasattr(params.side, 'value') else str(params.side),
+            "type": _enum_or_value(params.type),
+            "side": _enum_or_value(params.side),
             "timeInForce": params.time_in_force,
             "clientOrderId": client_order_id,
             "expireTime": str(expire_time),
@@ -137,6 +163,17 @@ class Client:
             "l2Size": params.size,
             "l2LimitFee": str(limit_fee),
             "reduceOnly": params.reduce_only,
+            "triggerPrice": params.trigger_price,
+            "triggerPriceType": _enum_or_value(params.trigger_price_type),
+            "sourceKey": params.source_key,
+            "isPositionTpsl": params.is_position_tpsl,
+            "openTpslParentOrderId": params.open_tpsl_parent_order_id,
+            "isSetOpenTp": params.is_set_open_tp,
+            "openTp": _serialize_open_tpsl(params.open_tp) if params.is_set_open_tp else None,
+            "isSetOpenSl": params.is_set_open_sl,
+            "openSl": _serialize_open_tpsl(params.open_sl) if params.is_set_open_sl else None,
+            "extraType": params.extra_type,
+            "extraDataJson": params.extra_data_json,
         }
 
         return await self.async_client.make_authenticated_request(
@@ -188,11 +225,17 @@ class Client:
         if params.filter_status_list:
             query_params["filterStatusList"] = ",".join(params.filter_status_list)
         if params.filter_is_liquidate is not None:
-            query_params["filterIsLiquidateList"] = str(params.filter_is_liquidate).lower()
+            query_params["filterIsLiquidateList"] = str(
+                params.filter_is_liquidate
+            ).lower()
         if params.filter_is_deleverage is not None:
-            query_params["filterIsDeleverageList"] = str(params.filter_is_deleverage).lower()
+            query_params["filterIsDeleverageList"] = str(
+                params.filter_is_deleverage
+            ).lower()
         if params.filter_is_position_tpsl is not None:
-            query_params["filterIsPositionTpslList"] = str(params.filter_is_position_tpsl).lower()
+            query_params["filterIsPositionTpslList"] = str(
+                params.filter_is_position_tpsl
+            ).lower()
         if params.filter_start_created_time_inclusive > 0:
             query_params["filterStartCreatedTimeInclusive"] = str(params.filter_start_created_time_inclusive)
         if params.filter_end_created_time_exclusive > 0:
@@ -217,11 +260,17 @@ class Client:
         if params.filter_order_id_list:
             query_params["filterOrderIdList"] = ",".join(params.filter_order_id_list)
         if params.filter_is_liquidate is not None:
-            query_params["filterIsLiquidateList"] = str(params.filter_is_liquidate).lower()
+            query_params["filterIsLiquidateList"] = str(
+                params.filter_is_liquidate
+            ).lower()
         if params.filter_is_deleverage is not None:
-            query_params["filterIsDeleverageList"] = str(params.filter_is_deleverage).lower()
+            query_params["filterIsDeleverageList"] = str(
+                params.filter_is_deleverage
+            ).lower()
         if params.filter_is_position_tpsl is not None:
-            query_params["filterIsPositionTpslList"] = str(params.filter_is_position_tpsl).lower()
+            query_params["filterIsPositionTpslList"] = str(
+                params.filter_is_position_tpsl
+            ).lower()
         if params.filter_start_created_time_inclusive > 0:
             query_params["filterStartCreatedTimeInclusive"] = str(params.filter_start_created_time_inclusive)
         if params.filter_end_created_time_exclusive > 0:
@@ -234,34 +283,39 @@ class Client:
         )
 
     async def get_history_order_page(self, params: GetHistoryOrderPageParams) -> Dict[str, Any]:
-        data = {"accountId": str(self.async_client.get_account_id()), "size": params.size}
+        query_params = {
+            "accountId": str(self.async_client.get_account_id()),
+            "size": str(params.size),
+        }
         if params.offset_data:
-            data["offsetData"] = params.offset_data
+            query_params["offsetData"] = params.offset_data
         if params.filter_coin_id_list:
-            data["filterCoinIdList"] = params.filter_coin_id_list
+            query_params["filterCoinIdList"] = ",".join(params.filter_coin_id_list)
         if params.filter_contract_id_list:
-            data["filterContractIdList"] = params.filter_contract_id_list
+            query_params["filterContractIdList"] = ",".join(params.filter_contract_id_list)
         if params.filter_type_list:
-            data["filterTypeList"] = params.filter_type_list
+            query_params["filterTypeList"] = ",".join(params.filter_type_list)
         if params.filter_status_list:
-            data["filterStatusList"] = params.filter_status_list
-        if params.filter_is_liquidate_list:
-            data["filterIsLiquidateList"] = params.filter_is_liquidate_list
-        if params.filter_is_deleverage_list:
-            data["filterIsDeleverageList"] = params.filter_is_deleverage_list
-        if params.filter_is_position_tpsl_list:
-            data["filterIsPositionTpslList"] = params.filter_is_position_tpsl_list
+            query_params["filterStatusList"] = ",".join(params.filter_status_list)
+        if params.filter_is_liquidate is not None:
+            query_params["filterIsLiquidateList"] = str(params.filter_is_liquidate).lower()
+        if params.filter_is_deleverage is not None:
+            query_params["filterIsDeleverageList"] = str(params.filter_is_deleverage).lower()
+        if params.filter_is_position_tpsl is not None:
+            query_params["filterIsPositionTpslList"] = str(
+                params.filter_is_position_tpsl
+            ).lower()
         if params.filter_start_created_time_inclusive:
-            data["filterStartCreatedTimeInclusive"] = params.filter_start_created_time_inclusive
+            query_params["filterStartCreatedTimeInclusive"] = params.filter_start_created_time_inclusive
         if params.filter_end_created_time_exclusive:
-            data["filterEndCreatedTimeExclusive"] = params.filter_end_created_time_exclusive
+            query_params["filterEndCreatedTimeExclusive"] = params.filter_end_created_time_exclusive
         if params.filter_order_id_list:
-            data["filterOrderIdList"] = params.filter_order_id_list
+            query_params["filterOrderIdList"] = ",".join(params.filter_order_id_list)
 
         return await self.async_client.make_authenticated_request(
-            method="POST",
+            method="GET",
             path="/api/v2/private/order/getHistoryOrderPage",
-            data=data,
+            params=query_params,
         )
 
     async def get_orders_by_id(self, order_id_list: List[str]) -> Dict[str, Any]:
