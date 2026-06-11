@@ -32,7 +32,8 @@ from edgex_sdk.transfer.client import GetWithdrawAvailableAmountParams
 
 async def main():
     # Load configuration from environment variables
-    base_url = os.getenv("EDGEX_BASE_URL", "https://testnet.edgex.exchange")
+    base_url = os.getenv("EDGEX_BASE_URL", "https://edgex-prod-v2.edgex.exchange")
+    asset_base_url = os.getenv("EDGEX_ASSET_BASE_URL", "https://spot.edgex.exchange")
     account_id = int(os.getenv("EDGEX_ACCOUNT_ID", "your_account_id"))
     trading_private_key = os.getenv("EDGEX_TRADING_PRIVATE_KEY", "your_private_key")
     wallet_private_key = os.getenv("EDGEX_SIGNER_PRIVATE_KEY", trading_private_key)
@@ -40,6 +41,7 @@ async def main():
     # Create a new client
     client = Client(
         base_url=base_url,
+        asset_base_url=asset_base_url,
         account_id=account_id,
         trading_private_key=trading_private_key,
         wallet_private_key=wallet_private_key
@@ -150,12 +152,12 @@ async def main():
     withdrawResult = await client.create_withdraw(CreateWithdrawParams(
         amount_raw="10000000",
         user_address="your-evm-address",
-        profile="testnet-usdc"
+        profile="mainnet-usdc"
     ))
     print(f"WithdrawResult: {withdrawResult}")
 
     # WebSocket example
-    ws_url = os.getenv("EDGEX_WS_URL", "wss://quote-testnet.edgex.exchange")
+    ws_url = os.getenv("EDGEX_WS_URL", "wss://edgex-quote-prod-v2.edgex.exchange")
     ws_manager = WebSocketManager(
         base_url=ws_url,
         account_id=account_id,

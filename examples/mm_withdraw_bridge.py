@@ -19,6 +19,7 @@ from edgex_sdk.cctp import CCTPBridgeClient
 async def withdraw_from_spot():
     client = Client(
         base_url=os.environ["EDGEX_BASE_URL"],
+        asset_base_url=os.getenv("EDGEX_ASSET_BASE_URL", "https://spot.edgex.exchange"),
         account_id=int(os.environ["EDGEX_SPOT_ACCOUNT_ID"]),
         api_key=os.environ["EDGEX_API_KEY"],
         api_passphrase=os.environ["EDGEX_API_PASSPHRASE"],

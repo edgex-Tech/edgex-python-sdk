@@ -283,24 +283,33 @@ class CCTPBridgeClient:
 
         usdc = w3.eth.contract(address=self.edge_usdc, abi=ERC20_ABI)
         messenger = w3.eth.contract(address=self.token_messenger, abi=TOKEN_MESSENGER_V2_ABI)
-        approve_tx = self.build_tx(w3, sender, usdc.functions.approve(self.token_messenger, amount))
-        burn_tx = self.build_tx(
+        first_nonce = w3.eth.get_transaction_count(sender)
+        approve_tx = self.build_tx(
             w3,
             sender,
-            messenger.functions.depositForBurn(
-                amount,
-                self.dest_domain,
-                bytes32_address(recipient),
-                self.edge_usdc,
-                ZERO_BYTES32,
-                max_fee,
-                finality_threshold,
-            ),
+            usdc.functions.approve(self.token_messenger, amount),
+            {"nonce": first_nonce},
+        )
+        burn_call = messenger.functions.depositForBurn(
+            amount,
+            self.dest_domain,
+            bytes32_address(recipient),
+            self.edge_usdc,
+            ZERO_BYTES32,
+            max_fee,
+            finality_threshold,
         )
         if dry_run:
+            burn_tx = self.build_tx(w3, sender, burn_call, {"nonce": first_nonce + 1})
             return {"approveTx": approve_tx, "burnTx": burn_tx}
 
         approve_hash = self.send_and_wait(w3, private_key, approve_tx)
+        burn_tx = self.build_tx(
+            w3,
+            sender,
+            burn_call,
+            {"nonce": w3.eth.get_transaction_count(sender)},
+        )
         burn_hash = self.send_and_wait(w3, private_key, burn_tx)
         return {"approveTxHash": approve_hash, "burnTxHash": burn_hash}
 

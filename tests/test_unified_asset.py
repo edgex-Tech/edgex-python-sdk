@@ -70,6 +70,25 @@ class UnifiedAssetWithdrawTest(unittest.TestCase):
         client = Client(base_url="https://example.com", account_id=12345)
         self.assertIsNotNone(client.unified_asset)
 
+    def test_client_routes_unified_asset_to_asset_base_url(self):
+        client = Client(
+            base_url="https://edgex-prod-v2.edgex.exchange",
+            asset_base_url="https://spot.edgex.exchange",
+            account_id=12345,
+        )
+
+        self.assertEqual(client.async_client.base_url, "https://edgex-prod-v2.edgex.exchange")
+        self.assertEqual(
+            client.async_client._base_url_for_path(
+                "/api/v1/private/unified-asset/getFeeByAssetFlow"
+            ),
+            "https://spot.edgex.exchange",
+        )
+        self.assertEqual(
+            client.async_client._base_url_for_path("/api/v2/private/account/getAccountAsset"),
+            "https://edgex-prod-v2.edgex.exchange",
+        )
+
     def test_build_spot_withdraw_attempt_uses_raw_amount_and_zero_privy(self):
         attempt = build_withdraw_attempt(
             user_address="0xFCAd0B19bB29D4674531d6f115237E16AfCE377c",

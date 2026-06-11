@@ -22,6 +22,7 @@ class Client:
         self,
         base_url: str,
         account_id: int,
+        asset_base_url: str = "",
         api_key: str = "",
         api_passphrase: str = "",
         api_secret: str = "",
@@ -35,6 +36,7 @@ class Client:
         self.async_client = AsyncClient(
             base_url=base_url,
             account_id=int(account_id),
+            asset_base_url=asset_base_url,
             api_key=api_key,
             api_passphrase=api_passphrase,
             api_secret=api_secret,

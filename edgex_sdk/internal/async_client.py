@@ -26,6 +26,7 @@ class AsyncClient:
         self,
         base_url: str,
         account_id: int,
+        asset_base_url: str = "",
         api_key: str = "",
         api_passphrase: str = "",
         api_secret: str = "",
@@ -37,7 +38,8 @@ class AsyncClient:
         timeout: float = 30.0,
         connector_limit: int = 100,
     ):
-        self.base_url = base_url
+        self.base_url = base_url.rstrip("/")
+        self.asset_base_url = (asset_base_url or base_url).rstrip("/")
         self.account_id = account_id
         self.api_key = api_key
         self.api_passphrase = api_passphrase
@@ -157,7 +159,8 @@ class AsyncClient:
         await self._ensure_session()
 
         actual_path = rewrite_path_to_v2(path) if rewrite_version else path
-        url = f"{self.base_url}{actual_path}"
+        base_url = self._base_url_for_path(actual_path)
+        url = f"{base_url}{actual_path}"
 
         timestamp = str(int(time.time() * 1000))
         headers: Dict[str, str] = {}
@@ -235,3 +238,8 @@ class AsyncClient:
 
         except aiohttp.ClientError as e:
             raise ValueError(f"HTTP request failed: {str(e)}")
+
+    def _base_url_for_path(self, path: str) -> str:
+        if path.startswith("/api/v1/private/unified-asset/"):
+            return self.asset_base_url
+        return self.base_url
