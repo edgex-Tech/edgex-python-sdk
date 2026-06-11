@@ -110,8 +110,11 @@ class OrderClientRequestTest(unittest.TestCase):
             },
         )
 
-    def test_get_history_order_page_keeps_list_fields(self):
+    def test_get_history_order_page_uses_get_query_params(self):
         params = GetHistoryOrderPageParams(
+            size=1,
+            offset_data="next-1",
+            filter_contract_id_list=["10000001"],
             filter_is_liquidate=True,
             filter_is_deleverage=False,
             filter_is_position_tpsl=True,
@@ -120,12 +123,15 @@ class OrderClientRequestTest(unittest.TestCase):
         asyncio.run(self.client.get_history_order_page(params))
 
         request = self.fake.calls[-1]
-        self.assertEqual(request[0], "POST")
+        self.assertEqual(request[0], "GET")
+        self.assertEqual(request[1], "/api/v2/private/order/getHistoryOrderPage")
         self.assertEqual(
-            request[2],
+            request[3],
             {
                 "accountId": "12345",
-                "size": 100,
+                "size": "1",
+                "offsetData": "next-1",
+                "filterContractIdList": "10000001",
                 "filterIsLiquidateList": "true",
                 "filterIsDeleverageList": "false",
                 "filterIsPositionTpslList": "true",

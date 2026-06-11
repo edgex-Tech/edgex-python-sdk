@@ -16,8 +16,6 @@ from .transfer.client import (
     GetTransferOutByIdParams,
     GetTransferInByIdParams,
     GetWithdrawAvailableAmountParams,
-    GetTransferOutPageParams,
-    GetTransferInPageParams,
 )
 from .unified_asset.client import (
     CreateSpotDepositParams,
@@ -43,6 +41,11 @@ from .quote.client import (
     GetKLineParams,
     GetOrderBookDepthParams,
     GetMultiContractKLineParams,
+    GetAccurateOpenInterestParams,
+    GetStatDayTradeParams,
+    GetExchangeLongShortRatioParams,
+    GetEstimatedFeeParams,
+    GetMarketStatusParams,
 )
 from .ws.manager import Manager as WebSocketManager
 
@@ -62,8 +65,6 @@ __all__ = [
     "GetTransferOutByIdParams",
     "GetTransferInByIdParams",
     "GetWithdrawAvailableAmountParams",
-    "GetTransferOutPageParams",
-    "GetTransferInPageParams",
     "CreateSpotDepositParams",
     "CreateWithdrawParams",
     "ZERO_ADDRESS",
@@ -83,5 +84,10 @@ __all__ = [
     "GetKLineParams",
     "GetOrderBookDepthParams",
     "GetMultiContractKLineParams",
+    "GetAccurateOpenInterestParams",
+    "GetStatDayTradeParams",
+    "GetExchangeLongShortRatioParams",
+    "GetEstimatedFeeParams",
+    "GetMarketStatusParams",
     "WebSocketManager",
 ]

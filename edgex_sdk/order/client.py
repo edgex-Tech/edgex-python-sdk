@@ -283,36 +283,39 @@ class Client:
         )
 
     async def get_history_order_page(self, params: GetHistoryOrderPageParams) -> Dict[str, Any]:
-        data = {"accountId": str(self.async_client.get_account_id()), "size": params.size}
+        query_params = {
+            "accountId": str(self.async_client.get_account_id()),
+            "size": str(params.size),
+        }
         if params.offset_data:
-            data["offsetData"] = params.offset_data
+            query_params["offsetData"] = params.offset_data
         if params.filter_coin_id_list:
-            data["filterCoinIdList"] = params.filter_coin_id_list
+            query_params["filterCoinIdList"] = ",".join(params.filter_coin_id_list)
         if params.filter_contract_id_list:
-            data["filterContractIdList"] = params.filter_contract_id_list
+            query_params["filterContractIdList"] = ",".join(params.filter_contract_id_list)
         if params.filter_type_list:
-            data["filterTypeList"] = params.filter_type_list
+            query_params["filterTypeList"] = ",".join(params.filter_type_list)
         if params.filter_status_list:
-            data["filterStatusList"] = params.filter_status_list
+            query_params["filterStatusList"] = ",".join(params.filter_status_list)
         if params.filter_is_liquidate is not None:
-            data["filterIsLiquidateList"] = str(params.filter_is_liquidate).lower()
+            query_params["filterIsLiquidateList"] = str(params.filter_is_liquidate).lower()
         if params.filter_is_deleverage is not None:
-            data["filterIsDeleverageList"] = str(params.filter_is_deleverage).lower()
+            query_params["filterIsDeleverageList"] = str(params.filter_is_deleverage).lower()
         if params.filter_is_position_tpsl is not None:
-            data["filterIsPositionTpslList"] = str(
+            query_params["filterIsPositionTpslList"] = str(
                 params.filter_is_position_tpsl
             ).lower()
         if params.filter_start_created_time_inclusive:
-            data["filterStartCreatedTimeInclusive"] = params.filter_start_created_time_inclusive
+            query_params["filterStartCreatedTimeInclusive"] = params.filter_start_created_time_inclusive
         if params.filter_end_created_time_exclusive:
-            data["filterEndCreatedTimeExclusive"] = params.filter_end_created_time_exclusive
+            query_params["filterEndCreatedTimeExclusive"] = params.filter_end_created_time_exclusive
         if params.filter_order_id_list:
-            data["filterOrderIdList"] = params.filter_order_id_list
+            query_params["filterOrderIdList"] = ",".join(params.filter_order_id_list)
 
         return await self.async_client.make_authenticated_request(
-            method="POST",
+            method="GET",
             path="/api/v2/private/order/getHistoryOrderPage",
-            data=data,
+            params=query_params,
         )
 
     async def get_orders_by_id(self, order_id_list: List[str]) -> Dict[str, Any]:

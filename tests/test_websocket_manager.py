@@ -31,13 +31,44 @@ class WebSocketManagerTest(unittest.TestCase):
             dummy.subscriptions,
             [
                 ("kline.LAST_PRICE.10000001.MINUTE_1", None),
-                ("depth.10000001.200", None),
+                ("depth.10000001.15", None),
                 ("trades.10000001", None),
             ],
         )
         self.assertIn("kline", dummy.handlers)
         self.assertIn("depth", dummy.handlers)
         self.assertIn("trades", dummy.handlers)
+
+    def test_additional_public_helpers_match_gateway(self):
+        manager = Manager(base_url="wss://example", account_id=123)
+        dummy = DummyPublicClient()
+        manager.public_client = dummy
+
+        manager.subscribe_metadata(lambda _: None)
+        manager.subscribe_ticker_all_1s(lambda _: None)
+        manager.subscribe_funding_rate("10000001", lambda _: None)
+        manager.subscribe_funding_rate_all(lambda _: None)
+
+        self.assertEqual(
+            dummy.subscriptions,
+            [
+                ("metadata", None),
+                ("ticker.all.1s", None),
+                ("fundingRate.10000001", None),
+                ("fundingRate.all", None),
+            ],
+        )
+        self.assertIn("metadata", dummy.handlers)
+        self.assertIn("ticker", dummy.handlers)
+        self.assertIn("fundingRate", dummy.handlers)
+
+    def test_subscribe_depth_rejects_invalid_level(self):
+        manager = Manager(base_url="wss://example", account_id=123)
+        dummy = DummyPublicClient()
+        manager.public_client = dummy
+
+        with self.assertRaises(ValueError):
+            manager.subscribe_depth("10000001", lambda _: None, depth=50)
 
 
 class PrivateWsDispatchTest(unittest.TestCase):

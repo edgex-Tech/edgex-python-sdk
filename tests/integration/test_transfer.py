@@ -9,8 +9,6 @@ from edgex_sdk import (
     GetTransferInByIdParams,
     GetWithdrawAvailableAmountParams,
     CreateTransferOutParams,
-    GetTransferOutPageParams,
-    GetTransferInPageParams,
     TransferReason
 )
 from tests.integration.base_test import BaseIntegrationTest
@@ -57,76 +55,6 @@ class TestTransferAPI(BaseIntegrationTest):
             except Exception as e2:
                 logger.warning(f"Both coinId 1000 and 2 failed: {e2}")
                 self.skipTest(f"Withdraw available amount not available for test coins: {e2}")
-
-    def test_get_transfer_out_page(self):
-        """Test get_transfer_out_page method."""
-        params = GetTransferOutPageParams(
-            size=10
-        )
-
-        try:
-            transfers = self.run_async(self.client.transfer.get_transfer_out_page(params))
-
-            # Check response
-            self.assertResponseSuccess(transfers)
-
-            # Check data structure
-            data = transfers.get("data", {})
-            self.assertIsInstance(data, dict)
-
-            if "transferList" in data:
-                transfer_list = data["transferList"]
-                self.assertIsInstance(transfer_list, list)
-                logger.info(f"Found {len(transfer_list)} transfer out records")
-
-                # Check transfer structure if any records exist
-                if transfer_list:
-                    transfer = transfer_list[0]
-                    self.assertIsInstance(transfer, dict)
-                    expected_fields = ["id", "coinId", "amount", "status", "createdTime"]
-                    for field in expected_fields:
-                        if field in transfer:
-                            logger.info(f"Transfer out {field}: {transfer[field]}")
-
-        except Exception as e:
-            # Some endpoints might not be available for test accounts
-            logger.warning(f"Transfer out page test failed (expected for test accounts): {e}")
-            self.skipTest(f"Transfer out page not available: {e}")
-
-    def test_get_transfer_in_page(self):
-        """Test get_transfer_in_page method."""
-        params = GetTransferInPageParams(
-            size=10
-        )
-
-        try:
-            transfers = self.run_async(self.client.transfer.get_transfer_in_page(params))
-
-            # Check response
-            self.assertResponseSuccess(transfers)
-
-            # Check data structure
-            data = transfers.get("data", {})
-            self.assertIsInstance(data, dict)
-
-            if "transferList" in data:
-                transfer_list = data["transferList"]
-                self.assertIsInstance(transfer_list, list)
-                logger.info(f"Found {len(transfer_list)} transfer in records")
-
-                # Check transfer structure if any records exist
-                if transfer_list:
-                    transfer = transfer_list[0]
-                    self.assertIsInstance(transfer, dict)
-                    expected_fields = ["id", "coinId", "amount", "status", "createdTime"]
-                    for field in expected_fields:
-                        if field in transfer:
-                            logger.info(f"Transfer in {field}: {transfer[field]}")
-
-        except Exception as e:
-            # Some endpoints might not be available for test accounts
-            logger.warning(f"Transfer in page test failed (expected for test accounts): {e}")
-            self.skipTest(f"Transfer in page not available: {e}")
 
     def test_get_transfer_out_by_id_validation(self):
         """Test get_transfer_out_by_id method validation."""
@@ -183,27 +111,6 @@ class TestTransferAPI(BaseIntegrationTest):
 
         logger.info("Transfer out parameter validation passed")
         logger.warning("Actual transfer creation skipped for safety")
-
-    def test_transfer_api_accessibility(self):
-        """Test that transfer API endpoints are accessible (basic connectivity)."""
-        # Test that we can at least reach the transfer endpoints
-        # This validates authentication and basic API structure
-
-        try:
-            # Try to get transfer out page with minimal params
-            params = GetTransferOutPageParams(size=1)
-            response = self.run_async(self.client.transfer.get_transfer_out_page(params))
-
-            # Even if we get an error, we should get a structured response
-            self.assertIsInstance(response, dict)
-            self.assertIn("code", response)
-
-            logger.info(f"Transfer API accessibility test - Response code: {response.get('code')}")
-
-        except Exception as e:
-            logger.info(f"Transfer API accessibility test - Exception (may be expected): {e}")
-            # This is acceptable - we're just testing connectivity
-
 
 if __name__ == "__main__":
     unittest.main()
