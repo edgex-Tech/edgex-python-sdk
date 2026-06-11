@@ -43,7 +43,12 @@ from .quote.client import (
     GetMultiContractKLineParams,
     GetMarketStatusParams,
 )
-from .ws.manager import Manager as WebSocketManager
+def __getattr__(name):
+    if name == "WebSocketManager":
+        from .ws.manager import Manager as WebSocketManager
+
+        return WebSocketManager
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 __all__ = [
     "Client",

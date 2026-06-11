@@ -87,7 +87,8 @@ from edgex_sdk import Client, OrderSide
 async def main():
     # Create a new client
     client = Client(
-        base_url="https://pro.edgex.exchange",  # Use https://testnet.edgex.exchange for testnet
+        base_url="https://edgex-prod-v2.edgex.exchange",
+        asset_base_url="https://spot.edgex.exchange",
         account_id=12345,  # Your account ID
         trading_private_key="your-trading-private-key"  # Your trading private key
     )
@@ -213,7 +214,7 @@ from edgex_sdk import WebSocketManager
 async def main():
     # Create a WebSocket manager
     ws_manager = WebSocketManager(
-        base_url="wss://quote.edgex.exchange",  # Use wss://quote-testnet.edgex.exchange for testnet
+        base_url="wss://edgex-quote-prod-v2.edgex.exchange",
         account_id=12345,
         api_key="",
         api_passphrase="",
@@ -261,7 +262,8 @@ Unified-asset withdrawals sign the EIP-712 payload returned by `getEIP712Data` a
 from edgex_sdk import Client, CreateWithdrawParams
 
 client = Client(
-    base_url="https://pro.edgex.exchange",
+    base_url="https://edgex-prod-v2.edgex.exchange",
+    asset_base_url="https://spot.edgex.exchange",
     account_id=12345,
     api_key="...",
     api_passphrase="...",
@@ -288,7 +290,7 @@ from edgex_sdk import Client, OrderSide
 
 async def main():
     client = Client(
-        base_url="https://pro.edgex.exchange",  # Use https://testnet.edgex.exchange for testnet
+        base_url="https://edgex-prod-v2.edgex.exchange",
         account_id=12345,
         trading_private_key="your-trading-private-key"
     )
@@ -329,7 +331,7 @@ from edgex_sdk import Client, GetActiveOrderParams
 
 async def main():
     client = Client(
-        base_url="https://pro.edgex.exchange",  # Use https://testnet.edgex.exchange for testnet
+        base_url="https://edgex-prod-v2.edgex.exchange",
         account_id=12345,
         trading_private_key="your-trading-private-key"
     )
@@ -521,8 +523,9 @@ For testing and development, you can set the following environment variables or 
 
 ```bash
 # API Configuration
-EDGEX_BASE_URL=https://pro.edgex.exchange  # Use https://testnet.edgex.exchange for testnet
-EDGEX_WS_URL=wss://quote.edgex.exchange    # Use wss://quote-testnet.edgex.exchange for testnet
+EDGEX_BASE_URL=https://edgex-prod-v2.edgex.exchange
+EDGEX_ASSET_BASE_URL=https://spot.edgex.exchange
+EDGEX_WS_URL=wss://edgex-quote-prod-v2.edgex.exchange
 
 # Account Credentials
 EDGEX_ACCOUNT_ID=12345
@@ -541,6 +544,7 @@ load_dotenv()
 
 client = Client(
     base_url=os.getenv("EDGEX_BASE_URL"),
+    asset_base_url=os.getenv("EDGEX_ASSET_BASE_URL"),
     account_id=int(os.getenv("EDGEX_ACCOUNT_ID")),
     trading_private_key=os.getenv("EDGEX_TRADING_PRIVATE_KEY")
 )
