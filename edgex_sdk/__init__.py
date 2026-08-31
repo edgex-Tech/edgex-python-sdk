@@ -9,6 +9,7 @@ from .order.types import (
     OrderType,
     OrderSide,
     TimeInForce,
+    TriggerPriceType,
 )
 from .transfer.client import (
     CreateTransferOutParams,
@@ -43,12 +44,15 @@ from .quote.client import (
     GetMultiContractKLineParams,
     GetMarketStatusParams,
 )
+
+
 def __getattr__(name):
     if name == "WebSocketManager":
         from .ws.manager import Manager as WebSocketManager
 
         return WebSocketManager
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
 
 __all__ = [
     "Client",
@@ -61,6 +65,7 @@ __all__ = [
     "OrderType",
     "OrderSide",
     "TimeInForce",
+    "TriggerPriceType",
     "CreateTransferOutParams",
     "TransferReason",
     "GetTransferOutByIdParams",

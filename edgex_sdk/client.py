@@ -1,6 +1,6 @@
 import time
 from typing import Dict, Any, Optional
-from decimal import Decimal
+from decimal import Decimal, ROUND_CEILING
 
 from .internal.async_client import AsyncClient
 from .internal.auth import DEFAULT_HEADER_KEY
@@ -11,7 +11,7 @@ from .order.client import Client as OrderClient
 from .quote.client import Client as QuoteClient
 from .transfer.client import Client as TransferClient
 from .unified_asset.client import Client as UnifiedAssetClient
-from .order.types import CreateOrderParams, CancelOrderParams, GetActiveOrderParams, OpenTpSlParams, OrderFillTransactionParams, OrderType, OrderSide
+from .order.types import CreateOrderParams, CancelOrderParams, GetActiveOrderParams, OrderFillTransactionParams, OrderType, OrderSide
 from .account.client import SetMarginModeParams
 
 
@@ -87,7 +87,11 @@ class Client:
             raise ValueError("failed to get metadata")
 
         l2_price = params.price
-        if params.type == OrderType.MARKET:
+        if params.type in (
+            OrderType.MARKET,
+            OrderType.STOP_MARKET,
+            OrderType.TAKE_PROFIT_MARKET,
+        ):
             price = await self._get_market_order_price(params.contract_id, params.side)
             if price is None:
                 raise ValueError("failed to get market order price")
@@ -199,15 +203,24 @@ class Client:
         if not contract:
             raise ValueError(f"contract not found: {contract_id}")
 
+        tick_size = Decimal(contract.get("tickSize", "0"))
+        if tick_size <= 0:
+            raise ValueError(f"tick size must be positive: {tick_size}")
+
         if side == OrderSide.BUY:
             quote = await self.get_24_hour_quote(contract_id)
-            if not quote:
+            quote_data = quote.get("data", []) if quote else []
+            if not quote_data:
                 return None
-            oracle_price = Decimal(quote.get("data", [])[0].get("oraclePrice", "0"))
-            tick_size = Decimal(contract.get("tickSize", "0"))
-            precision = abs(tick_size.as_tuple().exponent)
-            price = str(round(oracle_price * Decimal("10"), precision))
-        else:
-            price = contract.get("tickSize", "0")
-
-        return price
+            oracle_price = Decimal(quote_data[0].get("oraclePrice", "0"))
+            if oracle_price <= 0:
+                raise ValueError(f"oracle price must be positive: {oracle_price}")
+            price = (
+                (oracle_price * Decimal("10") / tick_size)
+                .to_integral_value(rounding=ROUND_CEILING)
+                * tick_size
+            )
+            return format(price, "f")
+        if side == OrderSide.SELL:
+            return format(tick_size, "f")
+        raise ValueError(f"invalid order side: {side}")

@@ -66,10 +66,18 @@ class Client:
 
     async def create_order(self, params: CreateOrderParams, metadata: Dict[str, Any], l2_price: Decimal) -> Dict[str, Any]:
         if not params.time_in_force:
-            if params.type == OrderType.MARKET:
-                params.time_in_force = TimeInForce.IMMEDIATE_OR_CANCEL.value
-            elif params.type == OrderType.LIMIT:
-                params.time_in_force = TimeInForce.GOOD_TIL_CANCEL.value
+            if params.type in (
+                OrderType.MARKET,
+                OrderType.STOP_MARKET,
+                OrderType.TAKE_PROFIT_MARKET,
+            ):
+                params.time_in_force = TimeInForce.IMMEDIATE_OR_CANCEL
+            elif params.type in (
+                OrderType.LIMIT,
+                OrderType.STOP_LIMIT,
+                OrderType.TAKE_PROFIT_LIMIT,
+            ):
+                params.time_in_force = TimeInForce.GOOD_TIL_CANCEL
 
         contract, quote_coin = self._resolve_contract_and_quote_coin(metadata, params.contract_id)
 
@@ -153,7 +161,7 @@ class Client:
             "size": params.size,
             "type": _enum_or_value(params.type),
             "side": _enum_or_value(params.side),
-            "timeInForce": params.time_in_force,
+            "timeInForce": _enum_or_value(params.time_in_force),
             "clientOrderId": client_order_id,
             "expireTime": str(expire_time),
             "l2Nonce": str(l2_nonce),
