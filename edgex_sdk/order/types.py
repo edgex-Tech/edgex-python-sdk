@@ -1,8 +1,24 @@
 from enum import Enum
-from typing import Optional, List, Any, Dict
+from typing import Any, List, Optional, Type, TypeVar, Union
 
 
-class OrderType(Enum):
+EnumType = TypeVar("EnumType", bound=Enum)
+
+
+def _coerce_enum(
+    value: Union[EnumType, str],
+    enum_type: Type[EnumType],
+    field_name: str,
+) -> EnumType:
+    if isinstance(value, enum_type):
+        return value
+    try:
+        return enum_type(value)
+    except (TypeError, ValueError):
+        raise ValueError(f"invalid {field_name}: {value}") from None
+
+
+class OrderType(str, Enum):
     LIMIT = "LIMIT"
     MARKET = "MARKET"
     STOP_LIMIT = "STOP_LIMIT"
@@ -11,27 +27,33 @@ class OrderType(Enum):
     TAKE_PROFIT_MARKET = "TAKE_PROFIT_MARKET"
 
 
-class OrderSide(Enum):
+class OrderSide(str, Enum):
     BUY = "BUY"
     SELL = "SELL"
 
 
-class TimeInForce(Enum):
+class TimeInForce(str, Enum):
     GOOD_TIL_CANCEL = "GOOD_TIL_CANCEL"
     IMMEDIATE_OR_CANCEL = "IMMEDIATE_OR_CANCEL"
     FILL_OR_KILL = "FILL_OR_KILL"
     POST_ONLY = "POST_ONLY"
 
 
+class TriggerPriceType(str, Enum):
+    LAST_PRICE = "LAST_PRICE"
+    ORACLE_PRICE = "ORACLE_PRICE"
+    INDEX_PRICE = "INDEX_PRICE"
+
+
 class OpenTpSlParams:
     def __init__(
         self,
-        side: Any,
+        side: Union[OrderSide, str],
         price: str,
         size: str,
         client_order_id: str,
         trigger_price: str,
-        trigger_price_type: Any,
+        trigger_price_type: Union[TriggerPriceType, str],
         expire_time: str = "",
         l2_nonce: str = "",
         l2_value: str = "",
@@ -40,12 +62,16 @@ class OpenTpSlParams:
         l2_expire_time: str = "",
         l2_signature: str = "",
     ):
-        self.side = side
+        self.side = _coerce_enum(side, OrderSide, "open TP/SL side")
         self.price = price
         self.size = size
         self.client_order_id = client_order_id
         self.trigger_price = trigger_price
-        self.trigger_price_type = trigger_price_type
+        self.trigger_price_type = _coerce_enum(
+            trigger_price_type,
+            TriggerPriceType,
+            "open TP/SL trigger price type",
+        )
         self.expire_time = expire_time
         self.l2_nonce = l2_nonce
         self.l2_value = l2_value
@@ -61,14 +87,14 @@ class CreateOrderParams:
         contract_id: str,
         price: str,
         size: str,
-        type: OrderType,
-        side: OrderSide,
-        time_in_force: str = "",
+        type: Union[OrderType, str],
+        side: Union[OrderSide, str],
+        time_in_force: Union[TimeInForce, str] = "",
         client_order_id: str = "",
         expire_time: int = 0,
         reduce_only: bool = False,
         trigger_price: str = "",
-        trigger_price_type: Any = "",
+        trigger_price_type: Union[TriggerPriceType, str] = "",
         source_key: str = "",
         is_position_tpsl: bool = False,
         open_tpsl_parent_order_id: str = "",
@@ -82,14 +108,37 @@ class CreateOrderParams:
         self.contract_id = contract_id
         self.price = price
         self.size = size
-        self.type = type
-        self.side = side
-        self.time_in_force = time_in_force
+        self.type = _coerce_enum(type, OrderType, "order type")
+        self.side = _coerce_enum(side, OrderSide, "order side")
+        self.time_in_force = (
+            _coerce_enum(time_in_force, TimeInForce, "time in force")
+            if time_in_force
+            else ""
+        )
         self.client_order_id = client_order_id
         self.expire_time = expire_time
         self.reduce_only = reduce_only
         self.trigger_price = trigger_price
-        self.trigger_price_type = trigger_price_type
+
+        conditional_types = {
+            OrderType.STOP_LIMIT,
+            OrderType.STOP_MARKET,
+            OrderType.TAKE_PROFIT_LIMIT,
+            OrderType.TAKE_PROFIT_MARKET,
+        }
+        if self.type in conditional_types and not trigger_price:
+            raise ValueError(f"trigger_price is required for {self.type.value}")
+        if trigger_price_type and not trigger_price:
+            raise ValueError("trigger_price_type requires trigger_price")
+        if trigger_price:
+            self.trigger_price_type = _coerce_enum(
+                trigger_price_type or TriggerPriceType.LAST_PRICE,
+                TriggerPriceType,
+                "trigger price type",
+            )
+        else:
+            self.trigger_price_type = ""
+
         self.source_key = source_key
         self.is_position_tpsl = is_position_tpsl
         self.open_tpsl_parent_order_id = open_tpsl_parent_order_id

@@ -4,10 +4,16 @@ Unit tests for the main client.
 
 import unittest
 import asyncio
+from decimal import Decimal
 from unittest.mock import MagicMock, AsyncMock
 
 from edgex_sdk.client import Client
-from edgex_sdk.order.types import OrderSide, OrderType, CreateOrderParams
+from edgex_sdk.order.types import (
+    CreateOrderParams,
+    OrderSide,
+    OrderType,
+    TriggerPriceType,
+)
 from edgex_sdk.account.client import SetMarginModeParams
 
 
@@ -141,6 +147,121 @@ class TestClient(unittest.TestCase):
         self.assertEqual(args.side, OrderSide.BUY)
         self.assertEqual(args.type, OrderType.MARKET)
         self.assertEqual(result, {"code": "SUCCESS", "data": {"orderId": "123"}})
+
+    def test_create_order_params_normalizes_string_enums(self):
+        params = CreateOrderParams(
+            contract_id="30000043",
+            size="79",
+            price="0",
+            side="SELL",
+            type="STOP_MARKET",
+            trigger_price="2.481",
+        )
+
+        self.assertIs(params.type, OrderType.STOP_MARKET)
+        self.assertIs(params.side, OrderSide.SELL)
+        self.assertEqual(params.time_in_force, "")
+        self.assertIs(params.trigger_price_type, TriggerPriceType.LAST_PRICE)
+
+    def test_create_order_params_rejects_invalid_enum_values(self):
+        valid = {
+            "contract_id": "30000043",
+            "size": "79",
+            "price": "0",
+            "side": "SELL",
+            "type": "STOP_MARKET",
+            "trigger_price": "2.481",
+        }
+        invalid_values = (
+            ({**valid, "type": "STOP_MAKRET"}, "invalid order type"),
+            ({**valid, "side": "SHORT"}, "invalid order side"),
+            ({**valid, "time_in_force": "IOC"}, "invalid time in force"),
+            (
+                {**valid, "trigger_price_type": "MARK_PRICE"},
+                "invalid trigger price type",
+            ),
+        )
+
+        for values, error in invalid_values:
+            with self.subTest(values=values), self.assertRaisesRegex(
+                ValueError, error
+            ):
+                CreateOrderParams(**values)
+
+    def test_conditional_order_requires_trigger_price(self):
+        with self.assertRaisesRegex(ValueError, "trigger_price is required"):
+            CreateOrderParams(
+                contract_id="30000043",
+                size="79",
+                price="0",
+                side=OrderSide.SELL,
+                type=OrderType.STOP_MARKET,
+            )
+
+    def test_conditional_market_order_request_uses_market_protection_price(self):
+        metadata = {
+            "data": {
+                "global": {
+                    "nativeChainId": "42161",
+                    "contractAddress": "0x0000000000000000000000000000000000000001",
+                },
+                "coinList": [{"coinId": "2", "resolution": "1000000"}],
+                "contractList": [{
+                    "contractId": "30000043",
+                    "quoteCoinId": "2",
+                    "tickSize": "0.001",
+                    "resolution": "100000000",
+                    "defaultTakerFeeRate": "0.00043",
+                    "defaultMakerFeeRate": "0.00038",
+                }],
+            }
+        }
+        self.client.get_metadata = AsyncMock(return_value=metadata)
+        self.client.get_24_hour_quote = AsyncMock(
+            return_value={"data": [{"oraclePrice": "2.427"}]}
+        )
+        self.client.async_client.resolve_trading_signer_address = MagicMock(
+            return_value="0x0000000000000000000000000000000000000002"
+        )
+        self.client.async_client.sign_typed_data_with_trading_key = MagicMock(
+            return_value="0x" + "00" * 65
+        )
+        self.client.async_client.make_authenticated_request = AsyncMock(
+            return_value={"code": "SUCCESS", "data": {"orderId": "123"}}
+        )
+
+        cases = (
+            ("STOP_MARKET", "SELL", Decimal("0.079")),
+            (OrderType.TAKE_PROFIT_MARKET, OrderSide.SELL, Decimal("0.079")),
+            ("STOP_MARKET", "BUY", Decimal("1917.33")),
+            (OrderType.TAKE_PROFIT_MARKET, OrderSide.BUY, Decimal("1917.33")),
+        )
+        for order_type, side, expected_l2_value in cases:
+            with self.subTest(order_type=order_type, side=side):
+                params = CreateOrderParams(
+                    contract_id="30000043",
+                    size="79",
+                    price="0",
+                    side=side,
+                    type=order_type,
+                    reduce_only=True,
+                    trigger_price="2.481",
+                    trigger_price_type=TriggerPriceType.LAST_PRICE,
+                )
+
+                asyncio.run(self.client.create_order(params))
+
+                request = self.client.async_client.make_authenticated_request.await_args.kwargs
+                body = request["data"]
+                self.assertEqual(request["path"], "/api/v2/private/order/createOrder")
+                self.assertEqual(body["price"], "0")
+                self.assertEqual(body["triggerPrice"], "2.481")
+                self.assertEqual(body["triggerPriceType"], "LAST_PRICE")
+                self.assertEqual(body["timeInForce"], "IMMEDIATE_OR_CANCEL")
+                self.assertEqual(Decimal(body["l2Value"]), expected_l2_value)
+                self.assertEqual(body["l2Size"], "79")
+
+                self.client.async_client.make_authenticated_request.reset_mock()
 
 
 if __name__ == "__main__":
