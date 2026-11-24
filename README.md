@@ -251,6 +251,53 @@ async def main():
 asyncio.run(main())
 ```
 
+## Market Data Identity
+
+Some accounts trade a contract on an order book of their own. The gateway decides which book to serve from the identity of the caller, so market data has to be requested as the account that trades: an anonymous request for the same contract returns the general book, which is not where that account's orders rest.
+
+The SDK therefore sends the account identity with market data whenever it has one, i.e. when the client is configured with an **account ID and all three HMAC credentials** (API key, passphrase, secret):
+
+- **HTTP** - on the market-data routes below, `accountId` is added to the query and the request carries the same HMAC headers as a private request (`X-edgeX-Api-Key`, `X-edgeX-Passphrase`, `X-edgeX-Signature`, `X-edgeX-Timestamp`; the signature covers the sorted query string, `accountId` included).
+- **Public WebSocket** - the `/api/v1/public/ws` handshake is signed the same way as the private one (`accountId` and `timestamp` in the query, HMAC headers).
+
+Routes that carry the identity:
+
+- `/api/v2/public/quote/getTicker`, `getDepth`, `getKline`, `getMultiContractKline`, `getMultiDayKline`, `getAccurateOpenInterest`, `getMarketStatus`
+- `/api/v2/public/funding/getLatestFundingRate`, `getFundingRatePage`
+- `/api/v2/public/index/getIndexPriceConfig`, `getMarketTradingSchedule`
+
+Every other public route (metadata, server time, ...) is always sent anonymously.
+
+What to expect:
+
+- For most accounts nothing changes: the gateway returns the same data as for an anonymous caller.
+- Without an account ID or with incomplete credentials the SDK behaves exactly as before (anonymous).
+- The identity is verified. With wrong or revoked credentials these market-data calls fail with an authentication error instead of silently falling back to anonymous data; fix the credentials or turn the identity off.
+- Responses to identified requests are per-account (`Cache-Control: private, no-store`); do not share them between accounts.
+- The WebSocket identity is fixed at connect time. Reconnect after changing account or credentials. If the gateway cannot verify the identity because one of its backends is unavailable, it accepts the public WebSocket as anonymous; reconnect later to get the account's book again.
+
+To keep market data anonymous even with credentials configured:
+
+```python
+client = Client(
+    base_url=base_url,
+    account_id=account_id,
+    api_key=api_key,
+    api_passphrase=api_passphrase,
+    api_secret=api_secret,
+    market_data_identity=False,  # HTTP market data stays anonymous
+)
+
+ws_manager = WebSocketManager(
+    base_url=ws_base_url,
+    account_id=account_id,
+    api_key=api_key,
+    api_passphrase=api_passphrase,
+    api_secret=api_secret,
+    market_data_identity=False,  # public WebSocket stays anonymous
+)
+```
+
 ## Signing
 
 The v2 SDK uses different keys for different signing flows:

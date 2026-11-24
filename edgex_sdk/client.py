@@ -32,6 +32,7 @@ class Client:
         wallet_address: str = "",
         auth_header_key: str = DEFAULT_HEADER_KEY,
         timeout: float = 30.0,
+        market_data_identity: bool = True,
     ):
         self.async_client = AsyncClient(
             base_url=base_url,
@@ -46,6 +47,7 @@ class Client:
             wallet_address=wallet_address,
             auth_header_key=auth_header_key,
             timeout=timeout,
+            market_data_identity=market_data_identity,
         )
 
         self.metadata = MetadataClient(self.async_client)

@@ -1,7 +1,7 @@
 import logging
 from typing import Optional, Callable
 
-from ..internal.auth import DEFAULT_HEADER_KEY
+from ..internal.auth import DEFAULT_HEADER_KEY, PUBLIC_WS_PATH
 from .client import Client
 
 
@@ -15,6 +15,7 @@ class Manager:
         api_secret: str = "",
         auth_header_key: str = DEFAULT_HEADER_KEY,
         private_ws_path: str = "",
+        market_data_identity: bool = True,
     ):
         self.base_url = base_url
         self.account_id = account_id
@@ -23,6 +24,9 @@ class Manager:
         self.api_secret = api_secret
         self.auth_header_key = auth_header_key
         self.private_ws_path = private_ws_path or "/api/v1/private/ws"
+        # Sign the public handshake with the account's credentials (on by default;
+        # only takes effect with an account id and the three HMAC credentials).
+        self.market_data_identity = market_data_identity
 
         self.public_client: Optional[Client] = None
         self.private_client: Optional[Client] = None
@@ -31,9 +35,15 @@ class Manager:
     def get_public_client(self) -> Client:
         if not self.public_client:
             self.public_client = Client(
-                url=f"{self.base_url}/api/v1/public/ws",
+                url=f"{self.base_url}{PUBLIC_WS_PATH}",
                 is_private=False,
                 account_id=self.account_id,
+                api_key=self.api_key,
+                api_passphrase=self.api_passphrase,
+                api_secret=self.api_secret,
+                auth_header_key=self.auth_header_key,
+                request_uri=PUBLIC_WS_PATH,
+                public_identity=self.market_data_identity,
             )
         return self.public_client
 
