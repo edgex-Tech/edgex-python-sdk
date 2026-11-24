@@ -7,7 +7,7 @@ from typing import Dict, Any, Optional, Callable
 
 import websocket
 
-from ..internal.auth import build_hmac_signature, DEFAULT_HEADER_KEY
+from ..internal.auth import build_hmac_signature, has_market_data_identity, DEFAULT_HEADER_KEY
 
 
 class Client:
@@ -21,6 +21,7 @@ class Client:
         api_secret: str = "",
         auth_header_key: str = DEFAULT_HEADER_KEY,
         request_uri: str = "",
+        public_identity: bool = False,
     ):
         self.url = url
         self.is_private = is_private
@@ -30,6 +31,13 @@ class Client:
         self.api_secret = api_secret
         self.auth_header_key = auth_header_key
         self.request_uri = request_uri
+        # A public connection that names its account on the handshake, so the
+        # gateway pushes the order book that account trades on.
+        self.public_identity = (
+            not is_private
+            and public_identity
+            and has_market_data_identity(account_id, api_key, api_passphrase, api_secret)
+        )
 
         self.conn = None
         self.handlers: Dict[str, Callable[[str], None]] = {}
@@ -46,7 +54,7 @@ class Client:
         url = self.url
         timestamp = str(int(time.time() * 1000))
 
-        if self.is_private:
+        if self.is_private or self.public_identity:
             request_uri = self.request_uri
             if not request_uri:
                 from urllib.parse import urlparse

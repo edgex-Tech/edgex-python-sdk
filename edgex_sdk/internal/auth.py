@@ -11,6 +11,34 @@ SIGNING_METHOD_HMAC = "hmac"
 
 DEFAULT_HEADER_KEY = "edgeX"
 
+# Public V2 market-data routes on which the gateway reads an optional account
+# identity. A request for a contract is then answered from the order book that
+# account trades on. Every other public route is always anonymous.
+MARKET_DATA_IDENTITY_PATHS = frozenset({
+    "/api/v2/public/quote/getTicker",
+    "/api/v2/public/quote/getDepth",
+    "/api/v2/public/quote/getKline",
+    "/api/v2/public/quote/getMultiContractKline",
+    "/api/v2/public/quote/getMultiDayKline",
+    "/api/v2/public/quote/getAccurateOpenInterest",
+    "/api/v2/public/quote/getMarketStatus",
+    "/api/v2/public/funding/getLatestFundingRate",
+    "/api/v2/public/funding/getFundingRatePage",
+    "/api/v2/public/index/getIndexPriceConfig",
+    "/api/v2/public/index/getMarketTradingSchedule",
+})
+
+PUBLIC_WS_PATH = "/api/v1/public/ws"
+
+
+def has_market_data_identity(account_id: Any, api_key: str, api_passphrase: str, api_secret: str) -> bool:
+    """An account plus the three HMAC credentials: what a market-data identity needs."""
+    try:
+        account = int(account_id)
+    except (TypeError, ValueError):
+        return False
+    return account > 0 and bool(api_key and api_passphrase and api_secret)
+
 
 def build_hmac_signature(
     api_secret: str,

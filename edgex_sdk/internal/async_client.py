@@ -10,7 +10,9 @@ from .auth import (
     API_VERSION_V2,
     SIGNING_METHOD_HMAC,
     DEFAULT_HEADER_KEY,
+    MARKET_DATA_IDENTITY_PATHS,
     build_hmac_headers,
+    has_market_data_identity,
     should_sign_with_hmac,
     rewrite_path_to_v2,
     get_value,
@@ -37,6 +39,7 @@ class AsyncClient:
         auth_header_key: str = DEFAULT_HEADER_KEY,
         timeout: float = 30.0,
         connector_limit: int = 100,
+        market_data_identity: bool = True,
     ):
         self.base_url = base_url.rstrip("/")
         self.asset_base_url = (asset_base_url or base_url).rstrip("/")
@@ -49,6 +52,9 @@ class AsyncClient:
         self.trading_address = trading_address
         self.wallet_address = wallet_address
         self.auth_header_key = auth_header_key
+        # Name the account on the public market-data routes (on by default; only
+        # takes effect with an account id and the three HMAC credentials).
+        self.market_data_identity = market_data_identity
 
         self._session: Optional[aiohttp.ClientSession] = None
         self._timeout = timeout
@@ -218,12 +224,14 @@ class AsyncClient:
 
         actual_path = rewrite_path_to_v2(path)
         url = f"{self.base_url}{actual_path}"
+        params, headers = self._with_market_data_identity(method, actual_path, params)
 
         try:
             async with self.session.request(
                 method=method,
                 url=url,
                 params=params,
+                headers=headers,
             ) as response:
                 if response.status != 200:
                     try:
@@ -238,6 +246,43 @@ class AsyncClient:
 
         except aiohttp.ClientError as e:
             raise ValueError(f"HTTP request failed: {str(e)}")
+
+    def _with_market_data_identity(
+        self,
+        method: str,
+        path: str,
+        params: Optional[Dict[str, Any]],
+    ) -> tuple:
+        """Add the account identity to a public market-data request.
+
+        On the routes in MARKET_DATA_IDENTITY_PATHS the gateway accepts the same
+        HMAC headers as a private request plus `accountId` in the query, and then
+        serves the order book that account trades on. Any other route, or a client
+        without an account and full credentials, is returned unchanged (anonymous).
+        """
+        if not (
+            self.market_data_identity
+            and method.upper() == "GET"
+            and path in MARKET_DATA_IDENTITY_PATHS
+            and has_market_data_identity(
+                self.account_id, self.api_key, self.api_passphrase, self.api_secret)
+        ):
+            return params, None
+
+        signed_params = dict(params or {})
+        signed_params["accountId"] = str(self.account_id)
+        body_str = "&".join(f"{k}={v}" for k, v in sorted(signed_params.items()))
+        headers = build_hmac_headers(
+            api_key=self.api_key,
+            api_passphrase=self.api_passphrase,
+            api_secret=self.api_secret,
+            timestamp=str(int(time.time() * 1000)),
+            method="GET",
+            request_uri=path,
+            body=body_str,
+            header_key=self.auth_header_key,
+        )
+        return signed_params, headers
 
     def _base_url_for_path(self, path: str) -> str:
         if path.startswith("/api/v1/private/unified-asset/"):
