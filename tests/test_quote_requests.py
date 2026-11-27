@@ -4,6 +4,7 @@ import unittest
 from edgex_sdk.quote.client import (
     Client as QuoteClient,
     GetMarketStatusParams,
+    GetOrderBookDepthParams,
 )
 
 
@@ -32,6 +33,18 @@ class QuoteClientRequestTest(unittest.TestCase):
                 "GET",
                 "/api/v2/public/quote/getMarketStatus",
                 {"contractId": "10000001"},
+            ),
+        )
+
+    def test_get_order_book_depth_default_level(self):
+        asyncio.run(self.client.get_order_book_depth(GetOrderBookDepthParams("10000001")))
+
+        self.assertEqual(
+            self.fake.calls[-1],
+            (
+                "GET",
+                "/api/v2/public/quote/getDepth",
+                {"contractId": "10000001", "level": "15"},
             ),
         )
 

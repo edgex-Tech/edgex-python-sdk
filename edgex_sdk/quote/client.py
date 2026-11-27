@@ -43,7 +43,7 @@ class GetKLineParams:
 
 
 class GetOrderBookDepthParams:
-    def __init__(self, contract_id: str, limit: int = 50):
+    def __init__(self, contract_id: str, limit: int = 15):
         self.contract_id = contract_id
         self.limit = limit
 
