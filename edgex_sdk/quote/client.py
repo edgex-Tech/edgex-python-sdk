@@ -49,10 +49,12 @@ class GetOrderBookDepthParams:
 
 
 class GetMultiContractKLineParams:
-    def __init__(self, contract_id_list: List[str], kline_type: str, size: int = 1):
+    def __init__(self, contract_id_list: List[str], kline_type: str, size: int = 1,
+                 price_type: PriceType = PriceType.LAST_PRICE):
         self.contract_id_list = contract_id_list
         self.kline_type = kline_type
         self.size = size
+        self.price_type = price_type
 
 
 class GetMarketStatusParams:
@@ -97,6 +99,7 @@ class Client:
             params={
                 "contractIdList": ",".join(params.contract_id_list),
                 "klineType": params.kline_type,
+                "priceType": params.price_type.value,
                 "size": str(params.size),
             })
 
